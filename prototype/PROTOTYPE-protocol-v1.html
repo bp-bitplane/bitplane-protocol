@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protocol v1 prototype</title>
+<style>
+  :root {
+    --bg: #fafaf9; --panel: #ffffff; --ink: #1c1917; --muted: #78716c; --line: #e7e5e4;
+    --accent: #4f46e5; --accent-soft: #eef2ff; --warn: #b45309; --warn-soft: #fffbeb;
+    --bad: #b91c1c; --bad-soft: #fef2f2; --ok: #15803d;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141312; --panel: #1c1b19; --ink: #e7e5e4; --muted: #a8a29e; --line: #2e2c2a;
+      --accent: #818cf8; --accent-soft: #1e1b4b; --warn: #fbbf24; --warn-soft: #2a2110;
+      --bad: #f87171; --bad-soft: #2a1414; --ok: #4ade80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, sans-serif; }
+  main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  h3 { font-size: 14px; margin: 14px 0 6px; }
+  p { margin: 0 0 8px; }
+  code, .mono { font-family: var(--mono); font-size: 12.5px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); margin-left: 4px; }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.bad { background: var(--bad-soft); color: var(--bad); }
+  .intro { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 12px 0 20px; }
+  .intro ul { margin: 6px 0 0; padding-left: 20px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); font-weight: 500; }
+  tr.changed td { background: var(--accent-soft); }
+  .empty { color: var(--muted); font-style: italic; }
+  .bar { position: relative; height: 8px; width: 120px; background: var(--line); border-radius: 4px; overflow: hidden; margin-top: 3px; }
+  .bar > span { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+  .bar.stale > span { background: var(--warn); }
+  .log { font-family: var(--mono); font-size: 12px; max-height: 620px; overflow: auto; }
+  .log .row { display: grid; grid-template-columns: 30px 90px 1fr; gap: 6px; padding: 3px 4px; border-bottom: 1px solid var(--line); }
+  .log .row.latest { background: var(--accent-soft); }
+  .log .who { color: var(--muted); }
+  .log .k-note { color: var(--muted); font-style: italic; font-family: system-ui, sans-serif; }
+  .log .k-err { color: var(--bad); }
+  .log .k-frame { color: var(--warn); }
+  .log .k-transport { color: var(--ok); }
+  .log pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+  .controls { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
+  .controls .label { font-size: 12px; color: var(--muted); min-width: 110px; }
+  button { font: inherit; font-size: 13px; padding: 5px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  select { font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+  .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 6px 10px; }
+  .tabs button.active { border-bottom-color: var(--accent); color: var(--accent); }
+  .steps { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .steps button { text-align: left; }
+  .steps button.done { color: var(--muted); text-decoration: line-through; }
+  .steps button.next { border-color: var(--accent); }
+  .watch { background: var(--warn-soft); border-left: 3px solid var(--warn); padding: 8px 10px; border-radius: 4px; margin-top: 8px; }
+  .spec td:first-child { white-space: nowrap; }
+  .questions li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Protocol v1: the method set <span class="tag warn">PROTOTYPE — throwaway</span></h1>
+  <p class="mono" style="color:var(--muted)">bp-bitplane/bitplane-protocol#3 · map: bitplane stack</p>
+
+  <div class="intro">
+    <p><b>Question.</b> Is this the right set of methods, events and frames for protocol v1? Push a stub session daemon through
+      the awkward cases and watch every message that crosses the wire.</p>
+    <p><b>The model.</b> One host runs one <b>session daemon</b>. Two <b>clients</b> reach it: <b>A</b> is cc on the same machine
+      (Unix socket), <b>B</b> is a second device going through <b>the gateway</b> (WebSocket → <code>bpg-server</code> → ssh → daemon).
+      A client opens <b>sessions</b> (a shell in a plane), <b>attaches</b> to watch and type, and acknowledges the bytes it has drawn
+      so the daemon knows how far ahead it may run. Sizes are in KiB; a program "printing 512 KiB" stands in for real output.</p>
+    <p><b>Strawman choices to react to</b> (all live in the logic module, nothing in the page):</p>
+    <ul>
+      <li>One <code>hello</code> per connection negotiates the version; no per-request version stamp.</li>
+      <li>Binary frames are addressed by a small per-connection <b>attachment id</b>, not by session id.</li>
+      <li>Typing is a binary <code>INPUT</code> frame (no reply); everything else is JSON-RPC.</li>
+      <li>Flow control: 128 KiB window per attachment, 256 KiB queue; overflow marks the attachment <b>behind</b>, its queue is dropped,
+        and once it catches up it gets a fresh <code>SNAPSHOT</code> instead of the lost bytes.</li>
+      <li>Events: every connection that said <code>hello</code> gets <code>session.changed</code> / <code>session.removed</code> for the whole host. No subscribe call.</li>
+      <li>Agent state is a field of the session, not its own method family.</li>
+      <li>Gateway: <b>one WebSocket per host</b>, host chosen by URL path; after <code>hello</code> messages pass through byte-for-byte. The only addition is <code>host</code> in the hello result.</li>
+    </ul>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="panel" id="state"></div>
+      <div class="panel">
+        <h2>Free play</h2>
+        <div id="freeplay"></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h2>On the wire <span style="text-transform:none;letter-spacing:0;font-weight:400">(latest step highlighted)</span></h2>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Guided walkthroughs</h2>
+    <div class="tabs" id="tabs"></div>
+    <div id="scenario"></div>
+  </div>
+
+  <div class="panel">
+    <h2>The method set this prototype implements</h2>
+    <div id="spec"></div>
+  </div>
+</main>
+
+<script>
+/* ============================================================================
+ * Protocol logic: pure, liftable. No DOM in here.
+ *   Protocol.initial()            -> world
+ *   Protocol.step(world, action)  -> new world (with the wire log appended)
+ *   Protocol.SPEC                 -> the method set, as data
+ * ==========================================================================*/
+const Protocol = (() => {
+  const VERSION = { min: 1, max: 1 };
+  const KIB = { window: 128, lowWater: 32, queueMax: 256, snapshot: 12, chunk: 64 };
+
+  const ERR = {
+    VERSION_UNSUPPORTED: -32001,
+    HELLO_REQUIRED: -32002,
+    UNKNOWN_SESSION: -32004,
+    UNKNOWN_ATTACHMENT: -32005,
+    READ_ONLY: -32006,
+    SESSION_EXITED: -32007,
+    BP_REFUSED: -32010,
+    BP_UNAVAILABLE: -32011,
+  };
+
+  const SPEC = {
+    requests: [
+      ['hello', '{ protocolVersion, minProtocolVersion, client: {name, version}, capabilities[] }',
+        '{ protocolVersion, daemon: {name, version}, bp: {version, contract}, capabilities[], host? }',
+        'Must be first. Negotiates max common version. `host` is added by the gateway only.'],
+      ['session.list', '{}', '{ sessions: Session[] }', ''],
+      ['session.open', '{ plane, cwd?, env? }', '{ session: Session }', 'Spawns the shell with BITPLANE_* env.'],
+      ['session.attach', '{ session, cols, rows, readOnly?, ignoreSize? }', '{ attachment, session: Session }',
+        'Followed by one SNAPSHOT frame, then OUTPUT frames. Snapshot + subscribe are atomic.'],
+      ['session.resize', '{ attachment, cols, rows }', '{}', 'Counts as activity: latest active attachment owns the PTY size.'],
+      ['session.detach', '{ attachment }', '{}', ''],
+      ['session.restart', '{ session }', '{ session: Session }', 'New shell, same session id; attachments stay and get a SNAPSHOT.'],
+      ['session.close', '{ session }', '{}', 'SIGHUP, then the session is removed.'],
+      ['bp.dispatch', '{ request: <bp Request JSON> }', '{ response: <bp Response JSON> }',
+        'Opaque in Rust. Errors: BP_REFUSED (data = bp ErrorEnvelope), BP_UNAVAILABLE.'],
+    ],
+    clientNotifications: [
+      ['session.ack', '{ attachment, bytes }', 'Cumulative bytes of this attachment\'s stream the client has drawn.'],
+    ],
+    serverNotifications: [
+      ['session.changed', '{ session: Session }', 'Opened, title, size, status, agent state, attach count. Sent to every hello\'d connection.'],
+      ['session.removed', '{ session }', 'Closed. Any attachments on it are gone.'],
+      ['attachment.error', '{ attachment, code, message }', 'Reply channel for INPUT frames, which have no response (e.g. READ_ONLY).'],
+    ],
+    frames: [
+      ['0x00 JSON', 'utf-8 JSON-RPC message', 'Stream transports only; on WebSocket this is a text message.'],
+      ['0x01 SNAPSHOT', 'u32 attachment · u64 offset · VT bytes', 'Terminal state as of session byte `offset`; client resets and writes it.'],
+      ['0x02 OUTPUT', 'u32 attachment · u64 offset · bytes', 'Live PTY bytes starting at session byte `offset`.'],
+      ['0x03 INPUT', 'u32 attachment · bytes', 'Written to the PTY whole. Client → daemon.'],
+    ],
+    envelope: 'Unix socket / stdio / ssh subsystem: u32 BE length · u8 kind · body. WebSocket: text = JSON-RPC, binary = u8 kind · body.',
+    session: 'Session = { id, plane, cwd, title, status: running | exited(code), size: {cols, rows}, attached, agent: null | { kind, agentSessionId, state: idle | busy | waiting(reason) | exited | resuming } }',
+    errors: ERR,
+  };
+
+  function initial() {
+    return {
+      step: 0,
+      daemon: { name: 'bitplane-sessiond', version: '0.1.0', protocol: { ...VERSION }, bp: { version: '0.9.2', contract: 3, installed: true }, nextSession: 1, generation: 1 },
+      planes: ['web', 'api'],
+      sessions: {},
+      attachments: {},
+      conns: {
+        A: { id: 'A', label: 'A · cc on this machine', via: 'local', open: false, helloed: false, protocol: { min: 1, max: 1 }, autoAck: true, cols: 120, rows: 40, nextId: 1, nextAtt: 1 },
+        B: { id: 'B', label: 'B · phone via gateway', via: 'gateway', open: false, helloed: false, protocol: { min: 1, max: 1 }, autoAck: true, cols: 60, rows: 30, nextId: 1, nextAtt: 1 },
+      },
+      log: [],
+    };
+  }
+
+  function step(prev, action) {
+    const s = structuredClone(prev);
+    s.step += 1;
+    const handler = HANDLERS[action.type];
+    if (!handler) throw new Error('unknown action ' + action.type);
+    handler(s, action);
+    settle(s);
+    return s;
+  }
+
+  // ---- action handlers -----------------------------------------------------
+
+  const HANDLERS = {
+    connect(s, { conn }) {
+      const c = s.conns[conn];
+      if (c.open) return note(s, conn, `${c.id} is already connected`);
+      Object.assign(c, { open: true, helloed: false, nextId: 1, nextAtt: 1 });
+      if (c.via === 'gateway') {
+        transport(s, conn, 'WebSocket wss://bpg.local/hosts/laptop (host picked by URL path; token checked)');
+        transport(s, conn, 'gateway → host: transport `system`: ssh laptop bitplane-sessiond connect (probe ok, version 0.1.0 matches)');
+      } else {
+        transport(s, conn, 'Unix socket $XDG_RUNTIME_DIR/bitplane/sessiond-0.1.0.sock (peer uid checked)');
+      }
+    },
+
+    disconnect(s, { conn }) {
+      const c = s.conns[conn];
+      if (!c.open) return note(s, conn, `${c.id} is not connected`);
+      const gone = Object.values(s.attachments).filter(a => a.conn === conn);
+      for (const a of gone) dropAttachment(s, a);
+      c.open = false; c.helloed = false;
+      transport(s, conn, 'connection closed (laptop lid shut / network gone)');
+      for (const sid of new Set(gone.map(a => a.session))) broadcastChanged(s, sid);
+    },
+
+    setProtocol(s, { conn, min, max }) {
+      s.conns[conn].protocol = { min, max };
+      note(s, conn, `${conn} now speaks protocol ${min}..${max}`);
+    },
+
+    setAutoAck(s, { conn, on }) {
+      s.conns[conn].autoAck = on;
+      note(s, conn, on ? `${conn} keeps up again (draws and acks promptly)` : `${conn} stalls (stops drawing and acking — background tab, bad network)`);
+    },
+
+    hello(s, { conn }) {
+      const c = s.conns[conn];
+      call(s, conn, 'hello', { protocolVersion: c.protocol.max, minProtocolVersion: c.protocol.min, client: { name: conn === 'A' ? 'bitplane-cc' : 'bitplane-cc-mobile', version: '0.4.0' }, capabilities: [] }, () => {
+        if (c.helloed) return { error: err(-32600, 'hello already done on this connection') };
+        if (c.via === 'gateway') {
+          note(s, conn, 'gateway terminates hello, runs its own hello upstream:');
+          wire(s, conn, 'gw-up', 'req', { jsonrpc: '2.0', id: 1, method: 'hello', params: { protocolVersion: 1, minProtocolVersion: 1, client: { name: 'bpg-server', version: '0.1.0' }, capabilities: [] } });
+          wire(s, conn, 'gw-down', 'res', { jsonrpc: '2.0', id: 1, result: helloResult(s, 1) });
+        }
+        const d = s.daemon.protocol;
+        const v = Math.min(c.protocol.max, d.max);
+        if (v < c.protocol.min || v < d.min) {
+          return { error: err(ERR.VERSION_UNSUPPORTED, 'protocol version unsupported', { supported: { min: d.min, max: d.max }, daemon: s.daemon.version }) };
+        }
+        c.helloed = true;
+        const result = helloResult(s, v);
+        if (c.via === 'gateway') result.host = { id: 'laptop', transport: 'system' };
+        return { result };
+      });
+    },
+
+    list(s, { conn }) {
+      call(s, conn, 'session.list', {}, () => ({ result: { sessions: Object.values(s.sessions).map(x => info(s, x)) } }));
+    },
+
+    open(s, { conn, plane }) {
+      call(s, conn, 'session.open', { plane }, () => {
+        const id = 's' + s.daemon.nextSession++;
+        s.sessions[id] = { id, plane, cwd: `~/planes/${plane}`, title: 'zsh', status: { state: 'running' }, size: { cols: 80, rows: 24 }, sizeOwner: null, offset: 0, agent: null };
+        note(s, conn, `daemon spawns zsh for ${id} (BITPLANE_PLANE_ID=${plane}, BITPLANE_SESSION_ID=${id})`);
+        output(s, id, 2, 'prompt');
+        return { result: { session: info(s, s.sessions[id]) }, after: () => broadcastChanged(s, id) };
+      });
+    },
+
+    attach(s, { conn, session, readOnly = false, ignoreSize = false }) {
+      const c = s.conns[conn];
+      const params = { session, cols: c.cols, rows: c.rows };
+      if (readOnly) params.readOnly = true;
+      if (ignoreSize) params.ignoreSize = true;
+      call(s, conn, 'session.attach', params, () => {
+        const x = s.sessions[session];
+        if (!x) return { error: err(ERR.UNKNOWN_SESSION, `no session ${session}`) };
+        const n = c.nextAtt++;
+        const key = `${conn}#${n}`;
+        s.attachments[key] = { key, n, conn, session, readOnly, ignoreSize, cols: c.cols, rows: c.rows, sent: 0, acked: 0, queued: 0, behind: false, lastActive: 0 };
+        return {
+          result: { attachment: n, session: info(s, x) },
+          after: () => {
+            sendSnapshot(s, s.attachments[key], 'attach');
+            const resized = !x.sizeOwner && activity(s, s.attachments[key]);
+            if (!resized) broadcastChanged(s, session);
+          },
+        };
+      });
+    },
+
+    type(s, { conn, session, text }) {
+      const c = s.conns[conn];
+      if (!c.open) return note(s, conn, `${conn} is not connected — nothing is sent`);
+      const a = attachmentOf(s, conn, session);
+      if (!a) return note(s, conn, `${conn} is not attached to ${session}; the SDK has no attachment id to put in an INPUT frame`);
+      wire(s, conn, 'up', 'frame', { frame: 'INPUT', attachment: a.n, bytes: JSON.stringify(text) });
+      if (a.readOnly) {
+        wire(s, conn, 'down', 'note', { jsonrpc: '2.0', method: 'attachment.error', params: { attachment: a.n, code: ERR.READ_ONLY, message: 'attachment is read-only' } });
+        return;
+      }
+      const x = s.sessions[session];
+      if (x.status.state !== 'running') {
+        wire(s, conn, 'down', 'note', { jsonrpc: '2.0', method: 'attachment.error', params: { attachment: a.n, code: ERR.SESSION_EXITED, message: 'shell has exited' } });
+        return;
+      }
+      note(s, conn, `daemon writes ${text.length} bytes to ${session}'s PTY in one write`);
+      activity(s, a);
+      output(s, session, 1, 'echo');
+    },
+
+    resize(s, { conn, session, cols, rows }) {
+      const c = s.conns[conn];
+      c.cols = cols; c.rows = rows;
+      const a = attachmentOf(s, conn, session);
+      if (!a) return note(s, conn, `${conn} resized its window to ${cols}×${rows}, but is not attached to ${session}`);
+      call(s, conn, 'session.resize', { attachment: a.n, cols, rows }, () => {
+        a.cols = cols; a.rows = rows;
+        return { result: {}, after: () => activity(s, a) };
+      });
+    },
+
+    ack(s, { conn }) {
+      for (const a of Object.values(s.attachments).filter(a => a.conn === conn)) sendAck(s, a);
+    },
+
+    detach(s, { conn, session }) {
+      const a = attachmentOf(s, conn, session);
+      if (!a) return note(s, conn, `${conn} is not attached to ${session}`);
+      call(s, conn, 'session.detach', { attachment: a.n }, () => ({ result: {}, after: () => { dropAttachment(s, a); broadcastChanged(s, session); } }));
+    },
+
+    restart(s, { conn, session }) {
+      call(s, conn, 'session.restart', { session }, () => {
+        const x = s.sessions[session];
+        if (!x) return { error: err(ERR.UNKNOWN_SESSION, `no session ${session}`) };
+        note(s, conn, `daemon SIGHUPs the old shell and spawns a new one under the same id ${session}`);
+        x.status = { state: 'running' }; x.title = 'zsh';
+        if (x.agent) x.agent.state = 'exited';
+        return {
+          result: { session: info(s, x) },
+          after: () => {
+            for (const a of attachmentsOn(s, session)) sendSnapshot(s, a, 'restart');
+            output(s, session, 2, 'prompt');
+            broadcastChanged(s, session);
+          },
+        };
+      });
+    },
+
+    close(s, { conn, session }) {
+      call(s, conn, 'session.close', { session }, () => {
+        if (!s.sessions[session]) return { error: err(ERR.UNKNOWN_SESSION, `no session ${session}`) };
+        return {
+          result: {},
+          after: () => {
+            for (const a of attachmentsOn(s, session)) dropAttachment(s, a);
+            delete s.sessions[session];
+            note(s, conn, `daemon SIGHUPs ${session} and forgets it`);
+            broadcast(s, 'session.removed', { session });
+          },
+        };
+      });
+    },
+
+    dispatch(s, { conn, request, outcome }) {
+      call(s, conn, 'bp.dispatch', { request }, () => {
+        if (!s.daemon.bp.installed || outcome === 'missing') {
+          note(s, conn, 'daemon runs `bp dispatch --json` → spawn failed: No such file or directory');
+          return { error: err(ERR.BP_UNAVAILABLE, 'bp could not be run', { cause: 'ENOENT' }) };
+        }
+        note(s, conn, 'daemon pipes the request to `bp dispatch --json` on stdin, never parses it');
+        if (outcome === 'refused') {
+          return { error: err(ERR.BP_REFUSED, 'bp refused the request', { error: 'plane_exists', code: 2, message: `plane '${request.name}' already exists`, problems: [], remedy: 'pick another name' }) };
+        }
+        if (request.action === 'plane_create') {
+          s.planes.push(request.name);
+          return { result: { response: { action: 'plane_create', plane: { id: request.name } } } };
+        }
+        return { result: { response: { action: 'plane_list', planes: s.planes.map(id => ({ id })) } } };
+      });
+    },
+
+    programPrints(s, { session, kib }) {
+      const x = s.sessions[session];
+      if (!x) return note(s, 'daemon', `no session ${session}`);
+      if (x.status.state !== 'running') return note(s, 'daemon', `${session} has exited; nothing prints`);
+      note(s, 'daemon', `a program in ${session} prints ${kib} KiB; daemon feeds all of it to the session's terminal emulator`);
+      let left = kib;
+      while (left > 0) {
+        const k = Math.min(KIB.chunk, left);
+        output(s, session, k, 'program');
+        settle(s);
+        left -= k;
+      }
+    },
+
+    shellExits(s, { session, code }) {
+      const x = s.sessions[session];
+      if (!x) return;
+      x.status = { state: 'exited', code };
+      if (x.agent) x.agent.state = 'exited';
+      note(s, 'daemon', `${session}'s shell exits with code ${code}; session stays listed until closed or restarted`);
+      broadcastChanged(s, session);
+    },
+
+    agent(s, { session, event }) {
+      const x = s.sessions[session];
+      if (!x) return;
+      const map = {
+        start: () => { x.agent = { kind: 'claude-code', agentSessionId: '7f3a…c21', state: 'idle' }; x.title = 'claude'; },
+        prompt: () => { x.agent.state = 'busy'; },
+        permission: () => { x.agent.state = 'waiting'; x.agent.waitingFor = 'permission'; },
+        stop: () => { x.agent.state = 'idle'; delete x.agent.waitingFor; },
+        exit: () => { x.agent.state = 'exited'; delete x.agent.waitingFor; x.title = 'zsh'; },
+      };
+      if (event !== 'start' && !x.agent) return note(s, 'daemon', `no Claude Code running in ${session}`);
+      map[event]();
+      note(s, 'daemon', `Claude Code hook (${({ start: 'SessionStart', prompt: 'UserPromptSubmit', permission: 'PermissionRequest', stop: 'Stop', exit: 'SessionEnd' })[event]}) reaches the daemon over its own channel — not part of this protocol`);
+      broadcastChanged(s, session);
+    },
+
+    daemonRestart(s) {
+      note(s, 'daemon', 'the daemon process dies (crash or reboot) and comes back');
+      for (const c of Object.values(s.conns)) {
+        if (c.open) transport(s, c.id, 'connection dropped: daemon went away');
+        c.open = false; c.helloed = false;
+      }
+      s.attachments = {};
+      s.daemon.generation += 1;
+      for (const x of Object.values(s.sessions)) {
+        Object.assign(x, { status: { state: 'running' }, offset: 0, sizeOwner: null, title: 'zsh' });
+        if (x.agent) {
+          x.agent.state = 'resuming';
+          note(s, 'daemon', `restores ${x.id} as a fresh shell in ${x.cwd} and types \`claude --resume ${x.agent.agentSessionId}\``);
+        } else {
+          note(s, 'daemon', `restores ${x.id} as a fresh shell in ${x.cwd}`);
+        }
+      }
+    },
+  };
+
+  // ---- protocol plumbing ---------------------------------------------------
+
+  function call(s, conn, method, params, handle) {
+    const c = s.conns[conn];
+    if (!c.open) return note(s, conn, `${conn} is not connected — nothing is sent`);
+    const id = c.nextId++;
+    wire(s, conn, 'up', 'req', { jsonrpc: '2.0', id, method, params });
+    if (method !== 'hello' && !c.helloed) {
+      return wire(s, conn, 'down', 'err', { jsonrpc: '2.0', id, error: err(ERR.HELLO_REQUIRED, 'first message must be hello') });
+    }
+    const r = handle(c);
+    if (r.error) wire(s, conn, 'down', 'err', { jsonrpc: '2.0', id, error: r.error });
+    else wire(s, conn, 'down', 'res', { jsonrpc: '2.0', id, result: r.result });
+    if (r.after) r.after();
+  }
+
+  function helloResult(s, v) {
+    return {
+      protocolVersion: v,
+      daemon: { name: s.daemon.name, version: s.daemon.version },
+      bp: s.daemon.bp.installed ? { version: s.daemon.bp.version, contract: s.daemon.bp.contract } : null,
+      capabilities: [],
+    };
+  }
+
+  function output(s, session, kib, why) {
+    const x = s.sessions[session];
+    x.offset += kib;
+    for (const a of attachmentsOn(s, session)) {
+      if (a.behind) continue;
+      a.queued += kib;
+      if (a.queued > KIB.queueMax) {
+        a.behind = true;
+        note(s, a.conn, `attachment ${a.n} (${a.conn}) is ${a.queued} KiB behind: daemon drops its queue; it will get a fresh SNAPSHOT once it acks`);
+        a.queued = 0;
+        continue;
+      }
+      pump(s, a);
+    }
+  }
+
+  function pump(s, a) {
+    if (a.behind) return;
+    const room = KIB.window - (a.sent - a.acked);
+    const n = Math.min(a.queued, room);
+    if (n <= 0) return;
+    const x = s.sessions[a.session];
+    wire(s, a.conn, 'down', 'frame', { frame: 'OUTPUT', attachment: a.n, offset: `${x.offset - a.queued} KiB`, len: `${n} KiB` });
+    a.sent += n;
+    a.queued -= n;
+  }
+
+  function sendSnapshot(s, a, why) {
+    const x = s.sessions[a.session];
+    wire(s, a.conn, 'down', 'frame', { frame: 'SNAPSHOT', attachment: a.n, offset: `${x.offset} KiB`, len: `${KIB.snapshot} KiB`, why });
+    a.sent += KIB.snapshot;
+    a.queued = 0;
+    a.behind = false;
+  }
+
+  function sendAck(s, a) {
+    if (a.sent === a.acked) return;
+    wire(s, a.conn, 'up', 'note', { jsonrpc: '2.0', method: 'session.ack', params: { attachment: a.n, bytes: `${a.sent} KiB` } });
+    a.acked = a.sent;
+    if (a.behind) {
+      if (a.sent - a.acked <= KIB.lowWater) sendSnapshot(s, a, 'resync');
+    } else {
+      pump(s, a);
+    }
+  }
+
+  function settle(s) {
+    for (let i = 0; i < 20; i++) {
+      const pending = Object.values(s.attachments).filter(a => s.conns[a.conn].autoAck && a.sent > a.acked);
+      if (!pending.length) return;
+      for (const a of pending) sendAck(s, a);
+    }
+  }
+
+  function activity(s, a) {
+    a.lastActive = s.step;
+    if (a.ignoreSize) return false;
+    const x = s.sessions[a.session];
+    const same = x.size.cols === a.cols && x.size.rows === a.rows;
+    x.sizeOwner = a.key;
+    if (same) return false;
+    x.size = { cols: a.cols, rows: a.rows };
+    note(s, a.conn, `daemon resizes ${x.id}'s PTY to ${a.cols}×${a.rows} (latest active attachment wins) and sends SIGWINCH`);
+    broadcastChanged(s, x.id);
+    return true;
+  }
+
+  function dropAttachment(s, a) {
+    const x = s.sessions[a.session];
+    if (x && x.sizeOwner === a.key) x.sizeOwner = null;
+    delete s.attachments[a.key];
+  }
+
+  function broadcastChanged(s, session) {
+    const x = s.sessions[session];
+    if (x) broadcast(s, 'session.changed', { session: info(s, x) });
+  }
+
+  function broadcast(s, method, params) {
+    for (const c of Object.values(s.conns)) {
+      if (c.open && c.helloed) wire(s, c.id, 'down', 'note', { jsonrpc: '2.0', method, params });
+    }
+  }
+
+  function info(s, x) {
+    const out = { id: x.id, plane: x.plane, cwd: x.cwd, title: x.title, status: x.status, size: x.size, attached: attachmentsOn(s, x.id).length, agent: x.agent };
+    return structuredClone(out);
+  }
+
+  function attachmentsOn(s, session) { return Object.values(s.attachments).filter(a => a.session === session); }
+  function attachmentOf(s, conn, session) { return Object.values(s.attachments).find(a => a.conn === conn && a.session === session); }
+  function err(code, message, data) { return data === undefined ? { code, message } : { code, message, data }; }
+  function wire(s, conn, dir, kind, body) { s.log.push({ step: s.step, conn, dir, kind, via: s.conns[conn]?.via, body }); }
+  function note(s, conn, text) { s.log.push({ step: s.step, conn, dir: 'note', kind: 'note', body: text }); }
+  function transport(s, conn, text) { s.log.push({ step: s.step, conn, dir: 'transport', kind: 'transport', body: text }); }
+
+  return { initial, step, SPEC, KIB };
+})();
+
+/* ============================================================================
+ * Page shell: throwaway.
+ * ==========================================================================*/
+let world = Protocol.initial();
+let prevWorld = world;
+let activeTab = 0;
+let scenarioPos = -1;
+
+const SCENARIOS = [
+  {
+    name: 'Happy path',
+    text: 'cc connects to the local daemon, says hello, opens a session in plane "web", attaches and types. Watch: the attach answer comes first, then exactly one SNAPSHOT, then live OUTPUT. Every hello\'d connection hears session.changed.',
+    watch: 'Is "attach returns an attachment id, frames use it" pleasant, or should frames carry the session id?',
+    steps: [
+      ['A connects', { type: 'connect', conn: 'A' }],
+      ['A says hello', { type: 'hello', conn: 'A' }],
+      ['A opens a session in "web"', { type: 'open', conn: 'A', plane: 'web' }],
+      ['A attaches to s1', { type: 'attach', conn: 'A', session: 's1' }],
+      ['A types "ls"', { type: 'type', conn: 'A', session: 's1', text: 'ls\r' }],
+      ['A lists sessions', { type: 'list', conn: 'A' }],
+    ],
+  },
+  {
+    name: 'Two clients',
+    text: 'A on the desktop and B on the phone both attach to s1. Both type; both resize. Watch who owns the PTY size: the latest active attachment, not the latest to attach.',
+    watch: 'B attached while A owned the size, so the PTY stayed 120×40 until B typed. Right call, or should attach count as activity?',
+    steps: [
+      ['A connects + hello', [{ type: 'connect', conn: 'A' }, { type: 'hello', conn: 'A' }]],
+      ['A opens and attaches s1', [{ type: 'open', conn: 'A', plane: 'web' }, { type: 'attach', conn: 'A', session: 's1' }]],
+      ['B connects through the gateway + hello', [{ type: 'connect', conn: 'B' }, { type: 'hello', conn: 'B' }]],
+      ['B attaches to s1', { type: 'attach', conn: 'B', session: 's1' }],
+      ['B types "git status"', { type: 'type', conn: 'B', session: 's1', text: 'git status\r' }],
+      ['A resizes its window to 140×45', { type: 'resize', conn: 'A', session: 's1', cols: 140, rows: 45 }],
+      ['B detaches', { type: 'detach', conn: 'B', session: 's1' }],
+    ],
+  },
+  {
+    name: 'Slow client',
+    text: 'B stalls (backgrounded app, bad network) while a build prints 512 KiB. A keeps up. Watch B fill its 128 KiB window, queue up to 256 KiB, then be marked behind. When B wakes up and acks, it gets one fresh SNAPSHOT instead of the lost megabytes.',
+    watch: 'Does the PTY ever wait for B? (It must not.) Is "drop and resnapshot" OK for an agent session where B might want the scrollback it missed?',
+    steps: [
+      ['Both connect, hello, A opens s1, both attach', [
+        { type: 'connect', conn: 'A' }, { type: 'hello', conn: 'A' }, { type: 'open', conn: 'A', plane: 'web' }, { type: 'attach', conn: 'A', session: 's1' },
+        { type: 'connect', conn: 'B' }, { type: 'hello', conn: 'B' }, { type: 'attach', conn: 'B', session: 's1' }]],
+      ['B stalls', { type: 'setAutoAck', conn: 'B', on: false }],
+      ['A build prints 512 KiB in s1', { type: 'programPrints', session: 's1', kib: 512 }],
+      ['B wakes up and acks what it has', [{ type: 'setAutoAck', conn: 'B', on: true }, { type: 'ack', conn: 'B' }]],
+      ['Another 8 KiB prints', { type: 'programPrints', session: 's1', kib: 8 }],
+    ],
+  },
+  {
+    name: 'Through the gateway',
+    text: 'B reaches the host through bpg-server. The gateway terminates hello, does its own hello upstream, and adds `host` to the result. After that every message is identical to the local path.',
+    watch: 'One WebSocket per host means a UI showing 3 hosts holds 3 sockets. Acceptable, or should one socket multiplex hosts (and then where does the host id go)?',
+    steps: [
+      ['B connects (WebSocket → gateway → ssh)', { type: 'connect', conn: 'B' }],
+      ['B lists sessions before hello', { type: 'list', conn: 'B' }],
+      ['B says hello', { type: 'hello', conn: 'B' }],
+      ['B opens a session in "api"', { type: 'open', conn: 'B', plane: 'api' }],
+      ['B runs bp: list planes', { type: 'dispatch', conn: 'B', request: { action: 'plane_list' } }],
+    ],
+  },
+  {
+    name: 'Version mismatch',
+    text: 'A newer cc that requires protocol 2 meets a daemon that speaks only 1. Then a cc that speaks 1..2 meets the same daemon and settles on 1.',
+    watch: 'Should the error tell the client how to fix it (e.g. "restart the daemon to upgrade"), or is {supported} enough for cc to decide?',
+    steps: [
+      ['A becomes a newer cc: speaks only 2', { type: 'setProtocol', conn: 'A', min: 2, max: 2 }],
+      ['A connects + hello', [{ type: 'connect', conn: 'A' }, { type: 'hello', conn: 'A' }]],
+      ['A disconnects', { type: 'disconnect', conn: 'A' }],
+      ['A speaks 1..2 instead', { type: 'setProtocol', conn: 'A', min: 1, max: 2 }],
+      ['A connects + hello', [{ type: 'connect', conn: 'A' }, { type: 'hello', conn: 'A' }]],
+    ],
+  },
+  {
+    name: 'Agent + daemon restart',
+    text: 'Claude Code runs in s1, goes busy, asks for permission. Clients learn it only from session.changed. Then the daemon crashes: connections drop, and on restart the session comes back as a fresh shell that types claude --resume.',
+    watch: 'After the restart s1 has the same id but a new PTY with offset 0. Should the session carry a generation number so clients know their old screen is stale?',
+    steps: [
+      ['A connects, hello, opens s1, attaches', [{ type: 'connect', conn: 'A' }, { type: 'hello', conn: 'A' }, { type: 'open', conn: 'A', plane: 'web' }, { type: 'attach', conn: 'A', session: 's1' }]],
+      ['Claude Code starts in s1', { type: 'agent', session: 's1', event: 'start' }],
+      ['User submits a prompt', { type: 'agent', session: 's1', event: 'prompt' }],
+      ['Claude asks for permission', { type: 'agent', session: 's1', event: 'permission' }],
+      ['Daemon crashes and comes back', { type: 'daemonRestart' }],
+      ['A reconnects, hello, lists', [{ type: 'connect', conn: 'A' }, { type: 'hello', conn: 'A' }, { type: 'list', conn: 'A' }]],
+    ],
+  },
+  {
+    name: 'Illegal & edge',
+    text: 'Things that should fail cleanly: a read-only attachment types, input to an exited shell, bp refusing, bp missing, closing a session someone else is attached to.',
+    watch: 'INPUT has no reply, so errors come back as attachment.error. Worth it, or should input be a JSON-RPC request with base64 data?',
+    steps: [
+      ['Both connect + hello; A opens s1', [{ type: 'connect', conn: 'A' }, { type: 'hello', conn: 'A' }, { type: 'open', conn: 'A', plane: 'web' }, { type: 'connect', conn: 'B' }, { type: 'hello', conn: 'B' }]],
+      ['B attaches read-only', { type: 'attach', conn: 'B', session: 's1', readOnly: true, ignoreSize: true }],
+      ['B tries to type', { type: 'type', conn: 'B', session: 's1', text: 'rm -rf /\r' }],
+      ['A creates plane "web" again via bp', { type: 'dispatch', conn: 'A', request: { action: 'plane_create', name: 'web' }, outcome: 'refused' }],
+      ['s1\'s shell exits (code 0)', { type: 'shellExits', session: 's1', code: 0 }],
+      ['A attaches and types into the exited shell', [{ type: 'attach', conn: 'A', session: 's1' }, { type: 'type', conn: 'A', session: 's1', text: 'ls\r' }]],
+      ['A restarts s1', { type: 'restart', conn: 'A', session: 's1' }],
+      ['A closes s1 while B is attached', { type: 'close', conn: 'A', session: 's1' }],
+    ],
+  },
+];
+
+function dispatch(actions) {
+  prevWorld = world;
+  for (const a of [].concat(actions)) world = Protocol.step(world, a);
+  // mark all entries produced in this click as "latest"
+  render();
+}
+
+function render() {
+  renderState();
+  renderLog();
+  renderFreeplay();
+  renderScenario();
+}
+
+function renderState() {
+  const w = world, p = prevWorld;
+  const changed = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
+  const conns = Object.values(w.conns).map(c => {
+    const pc = p.conns[c.id];
+    const status = !c.open ? '<span class="tag bad">disconnected</span>' : c.helloed ? '<span class="tag">ready</span>' : '<span class="tag warn">connected, no hello</span>';
+    return `<tr class="${changed(c, pc) ? 'changed' : ''}"><td><b>${c.label}</b></td><td>${status}</td><td>protocol ${c.protocol.min}..${c.protocol.max}</td><td>${c.cols}×${c.rows}</td><td>${c.autoAck ? 'keeps up' : '<span class="tag warn">stalled</span>'}</td></tr>`;
+  }).join('');
+  const sessions = Object.values(w.sessions).map(x => {
+    const px = p.sessions[x.id];
+    const st = x.status.state === 'running' ? 'running' : `<span class="tag bad">exited ${x.status.code}</span>`;
+    const ag = x.agent ? `${x.agent.state}${x.agent.waitingFor ? ' (' + x.agent.waitingFor + ')' : ''}` : '—';
+    const owner = x.sizeOwner ? x.sizeOwner.replace('#', ' att ') : 'nobody';
+    return `<tr class="${changed(x, px) ? 'changed' : ''}"><td><b>${x.id}</b></td><td>${x.plane}</td><td>${st}</td><td>${x.size.cols}×${x.size.rows}<br><span class="empty" style="font-style:normal">set by ${owner}</span></td><td>${ag}</td><td>${x.offset} KiB</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty">no sessions</td></tr>';
+  const atts = Object.values(w.attachments).map(a => {
+    const pa = p.attachments[a.key];
+    const inflight = a.sent - a.acked;
+    const pct = Math.min(100, inflight / Protocol.KIB.window * 100);
+    const flags = [a.readOnly && 'read-only', a.ignoreSize && 'ignores size'].filter(Boolean).join(', ') || '—';
+    return `<tr class="${changed(a, pa) ? 'changed' : ''}"><td><b>${a.conn}</b> att ${a.n}</td><td>${a.session}</td><td>${inflight} / ${Protocol.KIB.window} KiB unacked<div class="bar ${a.behind ? 'stale' : ''}"><span style="width:${pct}%"></span></div></td><td>${a.behind ? '<span class="tag warn">behind — awaits resync</span>' : a.queued + ' KiB queued'}</td><td>${flags}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="empty">nobody attached</td></tr>';
+  document.getElementById('state').innerHTML = `
+    <h2>Current state <span style="text-transform:none;letter-spacing:0;font-weight:400">(changed rows tinted)</span></h2>
+    <h3>Clients</h3><table>${conns}</table>
+    <h3>Sessions on the host <span class="tag">daemon ${w.daemon.version} · start #${w.daemon.generation}</span></h3>
+    <table><tr><th>id</th><th>plane</th><th>shell</th><th>PTY size</th><th>agent</th><th>output so far</th></tr>${sessions}</table>
+    <h3>Attachments</h3>
+    <table><tr><th>who</th><th>session</th><th>flow window</th><th>backlog</th><th>flags</th></tr>${atts}</table>`;
+}
+
+function renderLog() {
+  const from = prevWorld.log.length;
+  const rows = world.log.map((e, i) => {
+    const latest = i >= from ? 'latest' : '';
+    let who, body, cls = 'k-' + e.kind;
+    const arrow = { up: '→ daemon', down: '← daemon', 'gw-up': 'gw → daemon', 'gw-down': 'gw ← daemon', note: '', transport: '' }[e.dir];
+    if (e.kind === 'note' && typeof e.body === 'string') { who = e.conn === 'daemon' ? 'daemon' : e.conn; body = e.body; }
+    else if (e.kind === 'transport') { who = e.conn; body = '⇄ ' + e.body; }
+    else if (e.kind === 'frame') { who = `${e.conn} ${arrow}`; const { frame, ...rest } = e.body; body = `⟦${frame}⟧ ` + Object.entries(rest).map(([k, v]) => `${k}=${v}`).join(' '); }
+    else { who = `${e.conn} ${arrow}`; body = JSON.stringify(e.body); cls = e.kind === 'err' ? 'k-err' : ''; }
+    if (e.via === 'gateway' && (e.dir === 'up' || e.dir === 'down')) who += ' ⋯gw';
+    return `<div class="row ${latest}"><span class="who">${e.step}</span><span class="who">${who}</span><pre class="${cls}">${escapeHtml(body)}</pre></div>`;
+  });
+  const el = document.getElementById('log');
+  el.innerHTML = rows.join('') || '<p class="empty">Nothing on the wire yet. Click something.</p>';
+  const first = el.querySelector('.latest');
+  if (first) el.scrollTop = first.offsetTop - el.offsetTop - 8;
+}
+
+function renderFreeplay() {
+  const sessions = Object.keys(world.sessions);
+  const sel = id => `<select id="${id}">${sessions.map(s => `<option>${s}</option>`).join('') || '<option disabled>—</option>'}</select>`;
+  const keep = id => document.getElementById(id)?.value;
+  const prevA = keep('fp-sess-A'), prevB = keep('fp-sess-B'), prevD = keep('fp-sess-D');
+  const clientRow = c => `
+    <div class="controls"><span class="label"><b>${world.conns[c].label}</b></span></div>
+    <div class="controls">
+      <button data-a='{"type":"connect","conn":"${c}"}'>Connect</button>
+      <button data-a='{"type":"hello","conn":"${c}"}'>Hello</button>
+      <button data-a='{"type":"list","conn":"${c}"}'>List sessions</button>
+      <button data-a='{"type":"open","conn":"${c}","plane":"web"}'>Open in "web"</button>
+      <button data-a='{"type":"open","conn":"${c}","plane":"api"}'>Open in "api"</button>
+      <button data-a='{"type":"dispatch","conn":"${c}","request":{"action":"plane_list"}}'>bp: list planes</button>
+      <button data-a='{"type":"disconnect","conn":"${c}"}'>Drop connection</button>
+      <button data-a='{"type":"setAutoAck","conn":"${c}","on":${!world.conns[c].autoAck}}'>${world.conns[c].autoAck ? 'Stall' : 'Keep up'}</button>
+      <button data-a='{"type":"ack","conn":"${c}"}'>Ack now</button>
+    </div>
+    <div class="controls">
+      <span class="label">on session ${sel('fp-sess-' + c)}</span>
+      <button data-s="${c}" data-t="attach">Attach</button>
+      <button data-s="${c}" data-t="attach-ro">Attach read-only</button>
+      <button data-s="${c}" data-t="type">Type "ls"</button>
+      <button data-s="${c}" data-t="resize">Resize window</button>
+      <button data-s="${c}" data-t="detach">Detach</button>
+      <button data-s="${c}" data-t="restart">Restart</button>
+      <button data-s="${c}" data-t="close">Close</button>
+    </div>`;
+  document.getElementById('freeplay').innerHTML = clientRow('A') + clientRow('B') + `
+    <div class="controls" style="margin-top:12px"><span class="label"><b>Inside the host</b></span></div>
+    <div class="controls">
+      <span class="label">on session ${sel('fp-sess-D')}</span>
+      <button data-h="print8">Program prints 8 KiB</button>
+      <button data-h="print512">Build prints 512 KiB</button>
+      <button data-h="exit">Shell exits</button>
+      <button data-h="agent-start">Claude starts</button>
+      <button data-h="agent-prompt">Claude busy</button>
+      <button data-h="agent-permission">Claude asks permission</button>
+      <button data-h="agent-stop">Claude idle</button>
+    </div>
+    <div class="controls">
+      <button data-a='{"type":"daemonRestart"}'>Daemon crashes and restarts</button>
+      <button id="reset" class="primary">Reset everything</button>
+    </div>`;
+  for (const [id, v] of [['fp-sess-A', prevA], ['fp-sess-B', prevB], ['fp-sess-D', prevD]]) {
+    if (v && sessions.includes(v)) document.getElementById(id).value = v;
+  }
+}
+
+function renderScenario() {
+  document.getElementById('tabs').innerHTML = SCENARIOS.map((sc, i) => `<button class="${i === activeTab ? 'active' : ''}" data-tab="${i}">${sc.name}</button>`).join('');
+  const sc = SCENARIOS[activeTab];
+  const steps = sc.steps.map(([label], i) => {
+    const cls = i < scenarioPos ? 'done' : i === scenarioPos ? 'next' : '';
+    return `<button class="${cls}" data-step="${i}" ${i === scenarioPos ? '' : 'disabled'}>${i + 1}. ${label}</button>`;
+  }).join('');
+  document.getElementById('scenario').innerHTML = `
+    <p>${sc.text}</p>
+    <div class="watch"><b>Watch for:</b> ${sc.watch}</div>
+    <div class="steps">
+      <button class="primary" data-start="1">${scenarioPos < 0 ? 'Start this walkthrough' : 'Restart this walkthrough'} (resets state)</button>
+      ${scenarioPos >= 0 ? steps : ''}
+      ${scenarioPos >= sc.steps.length ? '<p class="empty">Done. Keep poking with free play.</p>' : ''}
+    </div>`;
+}
+
+function renderSpec() {
+  const S = Protocol.SPEC;
+  const rows = (list, cols) => list.map(r => `<tr>${r.map((c, i) => `<td class="${i < cols ? 'mono' : ''}">${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
+  document.getElementById('spec').innerHTML = `
+    <h3>Requests (client → daemon)</h3>
+    <table class="spec"><tr><th>method</th><th>params</th><th>result</th><th>notes</th></tr>${rows(S.requests, 3)}</table>
+    <h3>Notifications</h3>
+    <table class="spec"><tr><th>method</th><th>params</th><th>notes</th></tr>${rows(S.clientNotifications.map(r => [r[0] + '  (client →)', r[1], r[2]]), 2)}${rows(S.serverNotifications.map(r => [r[0] + '  (← daemon)', r[1], r[2]]), 2)}</table>
+    <h3>Frames</h3>
+    <p class="mono">${escapeHtml(S.envelope)}</p>
+    <table class="spec"><tr><th>kind</th><th>body</th><th>notes</th></tr>${rows(S.frames, 2)}</table>
+    <h3>Shapes and errors</h3>
+    <p class="mono">${escapeHtml(S.session)}</p>
+    <p class="mono">${Object.entries(S.errors).map(([k, v]) => `${v} ${k}`).join(' · ')}</p>
+    <h3>Open questions the prototype raises</h3>
+    <ol class="questions">
+      <li>Frames addressed by per-connection attachment id (compact, allows two attaches to one session) vs. session id.</li>
+      <li>Input as a binary frame + <code>attachment.error</code>, or as a JSON-RPC request with base64 data.</li>
+      <li>Does <code>session.attach</code> count as activity for "latest active wins"?</li>
+      <li>Slow client: drop + resnapshot loses the scrollback in between. Acceptable, given the snapshot carries scrollback?</li>
+      <li>Gateway: one WebSocket per host vs. one multiplexed socket (host id per message).</li>
+      <li>Events: whole-host broadcast after hello vs. explicit subscribe; are <code>session.changed</code>/<code>session.removed</code> enough, or does "plane changed on disk" belong in v1?</li>
+      <li>Exited shells stay listed until closed/restarted — or are they removed automatically?</li>
+      <li>Daemon restart keeps session ids but resets the PTY; do sessions need a generation/epoch?</li>
+      <li>No agent methods in v1 (state rides in <code>Session.agent</code>; resume is automatic on restore). Does cc need <code>agent.resume</code> or a "launch claude" call?</li>
+      <li>Enum evolution: <code>#[serde(other)] Unknown</code> on <code>status</code>/<code>agent.state</code>, or capability-gated variants.</li>
+    </ol>`;
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('button');
+  if (!t || t.disabled) return;
+  if (t.dataset.a) return dispatch(JSON.parse(t.dataset.a));
+  if (t.id === 'reset') { world = prevWorld = Protocol.initial(); scenarioPos = -1; return render(); }
+  if (t.dataset.s) {
+    const c = t.dataset.s, session = document.getElementById('fp-sess-' + c).value;
+    if (!world.sessions[session]) return;
+    const conn = world.conns[c];
+    const m = {
+      attach: { type: 'attach', conn: c, session },
+      'attach-ro': { type: 'attach', conn: c, session, readOnly: true, ignoreSize: true },
+      type: { type: 'type', conn: c, session, text: 'ls\r' },
+      resize: { type: 'resize', conn: c, session, cols: conn.cols === 120 || conn.cols === 60 ? conn.cols + 20 : conn.cols - 20, rows: conn.rows },
+      detach: { type: 'detach', conn: c, session },
+      restart: { type: 'restart', conn: c, session },
+      close: { type: 'close', conn: c, session },
+    };
+    return dispatch(m[t.dataset.t]);
+  }
+  if (t.dataset.h) {
+    const session = document.getElementById('fp-sess-D').value;
+    if (!world.sessions[session]) return;
+    const h = t.dataset.h;
+    if (h === 'print8') return dispatch({ type: 'programPrints', session, kib: 8 });
+    if (h === 'print512') return dispatch({ type: 'programPrints', session, kib: 512 });
+    if (h === 'exit') return dispatch({ type: 'shellExits', session, code: 0 });
+    return dispatch({ type: 'agent', session, event: h.slice(6) });
+  }
+  if (t.dataset.tab) { activeTab = +t.dataset.tab; scenarioPos = -1; return renderScenario(); }
+  if (t.dataset.start) { world = prevWorld = Protocol.initial(); scenarioPos = 0; return render(); }
+  if (t.dataset.step) {
+    const sc = SCENARIOS[activeTab];
+    dispatch(sc.steps[scenarioPos][1]);
+    scenarioPos += 1;
+    return renderScenario();
+  }
+});
+
+function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }
+
+renderSpec();
+render();
+</script>
+</body>
+</html>
