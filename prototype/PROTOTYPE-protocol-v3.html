@@ -1,0 +1,1444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protocol v1 prototype v3</title>
+<style>
+  :root {
+    --bg: #fafaf9; --panel: #ffffff; --ink: #1c1917; --muted: #78716c; --line: #e7e5e4;
+    --accent: #4f46e5; --accent-soft: #eef2ff; --warn: #b45309; --warn-soft: #fffbeb;
+    --bad: #b91c1c; --bad-soft: #fef2f2; --ok: #15803d;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141312; --panel: #1c1b19; --ink: #e7e5e4; --muted: #a8a29e; --line: #2e2c2a;
+      --accent: #818cf8; --accent-soft: #1e1b4b; --warn: #fbbf24; --warn-soft: #2a2110;
+      --bad: #f87171; --bad-soft: #2a1414; --ok: #4ade80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, sans-serif; }
+  main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  h3 { font-size: 14px; margin: 14px 0 6px; }
+  p { margin: 0 0 8px; }
+  code, .mono { font-family: var(--mono); font-size: 12.5px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); margin-left: 4px; }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.bad { background: var(--bad-soft); color: var(--bad); }
+  .intro { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 12px 0 20px; }
+  .intro ul { margin: 6px 0 0; padding-left: 20px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); font-weight: 500; }
+  tr.changed td { background: var(--accent-soft); }
+  .empty { color: var(--muted); font-style: italic; }
+  .bar { position: relative; height: 8px; width: 120px; background: var(--line); border-radius: 4px; overflow: hidden; margin-top: 3px; }
+  .bar > span { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+  .bar.stale > span { background: var(--warn); }
+  .log { font-family: var(--mono); font-size: 12px; max-height: 620px; overflow: auto; }
+  .log .row { display: grid; grid-template-columns: 30px 90px 1fr; gap: 6px; padding: 3px 4px; border-bottom: 1px solid var(--line); }
+  .log .row.latest { background: var(--accent-soft); }
+  .log .who { color: var(--muted); }
+  .log .k-note { color: var(--muted); font-style: italic; font-family: system-ui, sans-serif; }
+  .log .k-err { color: var(--bad); }
+  .log .k-frame { color: var(--warn); }
+  .log .k-transport { color: var(--ok); }
+  .log pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+  .controls { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
+  .controls .label { font-size: 12px; color: var(--muted); min-width: 110px; }
+  button { font: inherit; font-size: 13px; padding: 5px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  select { font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+  .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 6px 10px; }
+  .tabs button.active { border-bottom-color: var(--accent); color: var(--accent); }
+  .steps { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .steps button { text-align: left; }
+  .steps button.done { color: var(--muted); text-decoration: line-through; }
+  .steps button.next { border-color: var(--accent); }
+  .watch { background: var(--warn-soft); border-left: 3px solid var(--warn); padding: 8px 10px; border-radius: 4px; margin-top: 8px; }
+  .spec td:first-child { white-space: nowrap; }
+  .questions li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Protocol v1: the method set <span class="tag">v2 · whole host</span> <span class="tag warn">PROTOTYPE — throwaway</span></h1>
+</style>
+</head>
+<body>
+<main>
+  <h1>Protocol v1: the method set <span class="tag">v3 · modules</span> <span class="tag warn">PROTOTYPE — throwaway</span></h1>
+  <p class="mono" style="color:var(--muted)">bp-bitplane/bitplane-protocol#3 · map: bitplane stack</p>
+
+  <div class="intro">
+    <p><b>Question.</b> Is this the right set of methods, events and frames for protocol v1, now that the daemon is split into
+      <b>modules</b>, each owning one namespace? Push a stub daemon through the awkward cases and watch every message that crosses the wire.</p>
+    <p><b>What changed from v2</b> (from <i>How sessiond is split into modules</i>):</p>
+    <ul>
+      <li>One namespace per module: root (<code>hello</code>, <code>job.*</code>), <code>session.*</code> + <code>session.attachment.*</code>,
+        <code>agent.claude.*</code>, <code>plane.*</code>, <code>fs.*</code>, <code>git.*</code>. <code>bp.dispatch</code> is now <code>plane.dispatch</code>.</li>
+      <li><code>hello</code> lists modules in <code>capabilities[]</code>, with a reason when one is missing (no <code>bp</code>, <code>git</code> or <code>claude</code>).
+        Calling a missing module returns <code>MODULE_UNAVAILABLE</code>. Availability is probed <b>once, at daemon start</b>.</li>
+      <li><b>No module depends on planes.</b> <code>session.open { root, env, plane? }</code>: <code>plane</code> is an opaque id the daemon stores but never reads.
+        <code>fs.*</code> and <code>git.*</code> take paths. Git is per <b>repo path</b>; the client gets member paths from <code>plane.list</code>.</li>
+      <li>A plane folder vanishing under a running session: <code>session.changed</code> sets <code>rootGone</code>, the shell keeps running, <code>session.restart</code> is refused,
+        watches end with <code>fs.changed / git.changed { path, gone: true }</code>.</li>
+      <li>Agent state left the session: <code>agent.claude.*</code> owns it, keyed by <b>agent session</b> with an optional session reference.</li>
+      <li>A running job dies with the daemon and comes back <code>failed (daemon restarted)</code>, the plane left partial.</li>
+    </ul>
+    <p><b>The model.</b> One host runs one <b>daemon</b>. Two <b>clients</b> reach it: <b>A</b> is cc on the same machine
+      (Unix socket), <b>B</b> is a second device going through <b>the gateway</b> (WebSocket → <code>bpg-server</code> → ssh → daemon).
+      Sizes are in KiB; a program "printing 512 KiB" stands in for real output.</p>
+    <p><b>Strawman choices kept from v2</b>: one <code>hello</code> per connection; binary frames addressed by a per-connection attachment id;
+      typing is a binary <code>INPUT</code> frame; 128 KiB flow window, 256 KiB queue, then drop and resnapshot; sessions, agents, planes and jobs are broadcast,
+      fs and git are <b>scoped watches</b> (one scope per module per connection, each call replaces it); one WebSocket per host through the gateway.</p>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="panel" id="state"></div>
+      <div class="panel">
+        <h2>Free play</h2>
+        <div id="freeplay"></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h2>On the wire <span style="text-transform:none;letter-spacing:0;font-weight:400">(latest step highlighted)</span></h2>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Guided walkthroughs</h2>
+    <div class="tabs" id="tabs"></div>
+    <div id="scenario"></div>
+  </div>
+
+  <div class="panel">
+    <h2>The method set this prototype implements</h2>
+    <div id="spec"></div>
+  </div>
+</main>
+
+<script>
+/* ============================================================================
+ * Protocol logic: pure, liftable. No DOM in here.
+ *   Protocol.initial()            -> world
+ *   Protocol.step(world, action)  -> new world (with the wire log appended)
+ *   Protocol.SPEC                 -> the method set, as data
+ * ==========================================================================*/
+const Protocol = (() => {
+  const VERSION = { min: 1, max: 1 };
+  const KIB = { window: 128, lowWater: 32, queueMax: 256, snapshot: 12, chunk: 64 };
+  const PLANES_DIR = '~/planes';
+
+  const ERR = {
+    VERSION_UNSUPPORTED: -32001,
+    HELLO_REQUIRED: -32002,
+    MODULE_UNAVAILABLE: -32003,
+    UNKNOWN_SESSION: -32004,
+    UNKNOWN_ATTACHMENT: -32005,
+    READ_ONLY: -32006,
+    SESSION_EXITED: -32007,
+    ROOT_GONE: -32008,
+    NOT_FOUND: -32009,
+    BP_REFUSED: -32010,
+    PLANE_EXISTS: -32022,
+    UNKNOWN_JOB: -32030,
+    JOB_FINISHED: -32031,
+  };
+
+  const SPEC = {
+    requests: [
+      ['hello', '{ protocolVersion, minProtocolVersion, client: {name, version} }',
+        '{ protocolVersion, daemon: {name, version}, capabilities: Module[], host? }',
+        'root. Must be first. `host` is added by the gateway only.'],
+      ['job.list', '{}', '{ jobs: Job[] }', 'root. Running and finished-but-not-dismissed jobs of every kind.'],
+      ['job.cancel', '{ job }', '{}', 'root. The owning module stops it; final status arrives as job.changed.'],
+      ['job.dismiss', '{ job }', '{}', 'root. Forget a finished job; job.removed follows.'],
+      ['session.list', '{}', '{ sessions: Session[] }', ''],
+      ['session.open', '{ root, env?, plane? }', '{ session: Session }', '`root` must exist. `plane` is opaque: stored, exported as BITPLANE_PLANE_ID, returned.'],
+      ['session.restart', '{ session }', '{ session: Session }', 'New shell, same id. Refused with ROOT_GONE when the root vanished.'],
+      ['session.close', '{ session }', '{}', 'SIGHUP, then removed.'],
+      ['session.busy', '{ session }', '{ busy, processName }', 'Foreground process ≠ shell.'],
+      ['session.attachment.open', '{ session, cols, rows, readOnly?, ignoreSize? }', '{ attachment, session: Session }',
+        'Followed by one SNAPSHOT frame, then OUTPUT frames.'],
+      ['session.attachment.resize', '{ attachment, cols, rows }', '{}', 'Counts as activity: latest active attachment owns the PTY size.'],
+      ['session.attachment.close', '{ attachment }', '{}', ''],
+      ['agent.claude.list', '{}', '{ agents: Agent[] }', 'Claude Code agent sessions the daemon knows, with their session reference.'],
+      ['plane.list', '{}', '{ planes: PlanesModel }', 'The sidebar. bp/git availability is in hello, not here.'],
+      ['plane.refresh', '{}', '{}', 'Re-runs bp list; the answer arrives as plane.changed.'],
+      ['plane.projects', '{}', '{ projects: Project[] }', 'Was bp.dispatch(project_list) in v2.'],
+      ['plane.createDraft', '{ id }', '{}', 'Makes the draft folder; plane.changed follows.'],
+      ['plane.create', '{ args: CreateArgs }', '{ job }', 'Starts a job of kind plane.create.'],
+      ['plane.dispatch', '{ request: <bp Request JSON> }', '{ response: <bp Response JSON> }', 'Opaque. BP_REFUSED carries bp\'s ErrorEnvelope.'],
+      ['fs.list', '{ path }', '{ entries: {name, kind, ignored}[] }', 'Any path the daemon user can read.'],
+      ['fs.watch', '{ paths[] }', '{}', 'Replaces this connection\'s fs scope; [] stops.'],
+      ['git.status', '{ paths[] }', '{ repos: {path, status}[] }', 'One entry per repo path.'],
+      ['git.watch', '{ paths[] }', '{}', 'Replaces this connection\'s git scope; [] stops.'],
+    ],
+    clientNotifications: [
+      ['session.attachment.ack', '{ attachment, bytes }', 'Cumulative bytes of this attachment\'s stream the client has drawn.'],
+    ],
+    serverNotifications: [
+      ['job.changed', '{ job: Job }', 'Broadcast.'],
+      ['job.log', '{ job, lines[] }', 'Broadcast (open question).'],
+      ['job.removed', '{ job }', 'Dismissed.'],
+      ['session.changed', '{ session: Session }', 'Opened, title, foreground, size, status, attach count, rootGone. Broadcast.'],
+      ['session.removed', '{ session }', 'Closed.'],
+      ['session.attachment.error', '{ attachment, code, message }', 'Reply channel for INPUT frames.'],
+      ['agent.claude.changed', '{ agent: Agent }', 'State changed. Broadcast.'],
+      ['plane.changed', '{ planes: PlanesModel }', 'Whole model, broadcast.'],
+      ['fs.changed', '{ path, gone? }', 'One per watched folder that changed. gone: the watch on it has ended.'],
+      ['git.changed', '{ path, status } | { path, gone: true }', 'One per watched repo. gone: the watch on it has ended.'],
+    ],
+    frames: [
+      ['0x00 JSON', 'utf-8 JSON-RPC message', 'Stream transports only; on WebSocket this is a text message.'],
+      ['0x01 SNAPSHOT', 'u32 attachment · u64 offset · VT bytes', 'Terminal state as of session byte `offset`.'],
+      ['0x02 OUTPUT', 'u32 attachment · u64 offset · bytes', 'Live PTY bytes from session byte `offset`.'],
+      ['0x03 INPUT', 'u32 attachment · bytes', 'Written to the PTY whole. Client → daemon.'],
+    ],
+    envelope: 'Unix socket / stdio / ssh subsystem: u32 BE length · u8 kind · body. WebSocket: text = JSON-RPC, binary = u8 kind · body.',
+    shapes: [
+      'Module = { module: "session" | "agent.claude" | "plane" | "fs" | "git", available, reason?, info? }   (plane.info = { bp: {version, contract} })',
+      'Session = { id, key, seq, root, plane?, title, foreground, status: running | exited(code) | spawnFailed(error), rootGone, size: {cols, rows}, attached }',
+      'Agent = { agentSession, session?, cwd, state: idle | busy | waiting(reason) | exited | resuming }',
+      'PlanesModel = { planesDir, planes: { id, root, kind: plane | draft | creating | gone, members: {name, path}[], findings[] }[] }',
+      'Job = { id, kind: "plane.create", status: running | succeeded | scriptFailed | nothingCreated | partial | failed(reason), phase, startedBy, logLines, detail: { plane } }',
+      'CreateArgs = { id, branch, members: {spec, branch?}[], intent: auto | new | existing, noFetch, noScripts }',
+    ],
+    errors: ERR,
+  };
+
+  function initial() {
+    const tools = { bp: { version: '0.9.2', contract: 3 }, git: true, claude: true };
+    return {
+      step: 0,
+      daemon: { name: 'bitplane-sessiond', version: '0.1.0', protocol: { ...VERSION }, nextSession: 1, generation: 1, modules: probe(tools) },
+      host: {
+        tools,
+        planes: {
+          web: { kind: 'plane', members: ['app', 'ui'], findings: [] },
+          api: { kind: 'plane', members: ['api'], findings: ['dirty'] },
+        },
+        dirs: {
+          '~': [['planes', 'directory', false], ['notes', 'directory', false]],
+          '/etc': [['hosts', 'file', false], ['ssh', 'directory', false]],
+          '~/planes/web': [['app', 'directory', false], ['ui', 'directory', false], ['node_modules', 'directory', true], ['plane.toml', 'file', false]],
+          '~/planes/web/app/src': [['index.ts', 'file', false], ['app.tsx', 'file', false]],
+          '~/planes/api': [['api', 'directory', false], ['plane.toml', 'file', false]],
+          '~/planes/api/api/src': [['main.rs', 'file', false]],
+        },
+        repos: {
+          '~/planes/web/app': repo('web'),
+          '~/planes/web/ui': repo('web'),
+          '~/planes/api/api': repo('api', { unstaged: [{ path: 'src/main.rs', kind: 'modified' }] }),
+        },
+        jobs: {},
+        nextJob: 1,
+        nextSeq: 1,
+      },
+      sessions: {},
+      agents: {},
+      attachments: {},
+      conns: {
+        A: { id: 'A', label: 'A · cc on this machine', via: 'local', open: false, helloed: false, protocol: { min: 1, max: 1 }, autoAck: true, cols: 120, rows: 40, nextId: 1, nextAtt: 1, watch: { fs: [], git: [] } },
+        B: { id: 'B', label: 'B · phone via gateway', via: 'gateway', open: false, helloed: false, protocol: { min: 1, max: 1 }, autoAck: true, cols: 60, rows: 30, nextId: 1, nextAtt: 1, watch: { fs: [], git: [] } },
+      },
+      log: [],
+    };
+  }
+
+  function step(prev, action) {
+    const s = structuredClone(prev);
+    s.step += 1;
+    const handler = HANDLERS[action.type];
+    if (!handler) throw new Error('unknown action ' + action.type);
+    handler(s, action);
+    settle(s);
+    return s;
+  }
+
+  // ---- action handlers -----------------------------------------------------
+
+  const HANDLERS = {
+    connect(s, { conn }) {
+      const c = s.conns[conn];
+      if (c.open) return note(s, conn, `${c.id} is already connected`);
+      Object.assign(c, { open: true, helloed: false, nextId: 1, nextAtt: 1, watch: { fs: [], git: [] } });
+      if (c.via === 'gateway') {
+        transport(s, conn, 'WebSocket wss://bpg.local/hosts/laptop (host picked by URL path; token checked)');
+        transport(s, conn, 'gateway → host: transport `system`: ssh laptop bitplane-sessiond connect (probe ok, version 0.1.0 matches)');
+      } else {
+        transport(s, conn, 'Unix socket $XDG_RUNTIME_DIR/bitplane/sessiond-0.1.0.sock (peer uid checked)');
+      }
+    },
+
+    disconnect(s, { conn }) {
+      const c = s.conns[conn];
+      if (!c.open) return note(s, conn, `${c.id} is not connected`);
+      const gone = Object.values(s.attachments).filter(a => a.conn === conn);
+      for (const a of gone) dropAttachment(s, a);
+      c.open = false; c.helloed = false; c.watch = { fs: [], git: [] };
+      transport(s, conn, 'connection closed (laptop lid shut / network gone); its fs and git watches are dropped');
+      for (const sid of new Set(gone.map(a => a.session))) broadcastChanged(s, sid);
+    },
+
+    setProtocol(s, { conn, min, max }) {
+      s.conns[conn].protocol = { min, max };
+      note(s, conn, `${conn} now speaks protocol ${min}..${max}`);
+    },
+
+    setAutoAck(s, { conn, on }) {
+      s.conns[conn].autoAck = on;
+      note(s, conn, on ? `${conn} keeps up again (draws and acks promptly)` : `${conn} stalls (stops drawing and acking — background tab, bad network)`);
+    },
+
+    setTool(s, { tool, on }) {
+      const t = s.host.tools;
+      t[tool] = on ? (tool === 'bp' ? { version: '0.9.2', contract: 3 } : true) : null;
+      note(s, 'daemon', `${tool} is ${on ? 'installed' : 'removed'} on the host. The daemon probed modules at start, so it does not notice until it restarts.`);
+    },
+
+    hello(s, { conn }) {
+      const c = s.conns[conn];
+      call(s, conn, 'hello', { protocolVersion: c.protocol.max, minProtocolVersion: c.protocol.min, client: { name: conn === 'A' ? 'bitplane-cc' : 'bitplane-cc-mobile', version: '0.4.0' } }, () => {
+        if (c.helloed) return { error: err(-32600, 'hello already done on this connection') };
+        if (c.via === 'gateway') {
+          note(s, conn, 'gateway terminates hello, runs its own hello upstream:');
+          wire(s, conn, 'gw-up', 'req', { jsonrpc: '2.0', id: 1, method: 'hello', params: { protocolVersion: 1, minProtocolVersion: 1, client: { name: 'bpg-server', version: '0.1.0' } } });
+          wire(s, conn, 'gw-down', 'res', { jsonrpc: '2.0', id: 1, result: helloResult(s, 1) });
+        }
+        const d = s.daemon.protocol;
+        const v = Math.min(c.protocol.max, d.max);
+        if (v < c.protocol.min || v < d.min) {
+          return { error: err(ERR.VERSION_UNSUPPORTED, 'protocol version unsupported', { supported: { min: d.min, max: d.max }, daemon: s.daemon.version }) };
+        }
+        c.helloed = true;
+        const result = helloResult(s, v);
+        if (c.via === 'gateway') result.host = { id: 'laptop', transport: 'system' };
+        return { result };
+      });
+    },
+
+    list(s, { conn }) {
+      call(s, conn, 'session.list', {}, () => ({ result: { sessions: Object.values(s.sessions).map(x => info(s, x)) } }));
+    },
+
+    open(s, { conn, plane, root }) {
+      const r = root || planeRoot(plane);
+      const params = plane ? { root: r, plane, env: {} } : { root: r, env: {} };
+      call(s, conn, 'session.open', params, () => {
+        if (!pathExists(s, r)) return { error: err(ERR.NOT_FOUND, `${r} does not exist`) };
+        const id = 's' + s.daemon.nextSession++;
+        s.sessions[id] = { id, key: `k${s.host.nextSeq}`, seq: s.host.nextSeq++, root: r, plane: plane || null, title: 'zsh', foreground: 'zsh', status: { state: 'running' }, rootGone: false, size: { cols: 80, rows: 24 }, sizeOwner: null, offset: 0 };
+        note(s, conn, `daemon spawns zsh in ${r} for ${id}` + (plane ? ` (BITPLANE_PLANE_ID=${plane}, never read by the daemon)` : ' (no plane)'));
+        output(s, id, 2, 'prompt');
+        return { result: { session: info(s, s.sessions[id]) }, after: () => broadcastChanged(s, id) };
+      });
+    },
+
+    attach(s, { conn, session, readOnly = false, ignoreSize = false }) {
+      const c = s.conns[conn];
+      const params = { session, cols: c.cols, rows: c.rows };
+      if (readOnly) params.readOnly = true;
+      if (ignoreSize) params.ignoreSize = true;
+      call(s, conn, 'session.attachment.open', params, () => {
+        const x = s.sessions[session];
+        if (!x) return { error: err(ERR.UNKNOWN_SESSION, `no session ${session}`) };
+        const n = c.nextAtt++;
+        const key = `${conn}#${n}`;
+        s.attachments[key] = { key, n, conn, session, readOnly, ignoreSize, cols: c.cols, rows: c.rows, sent: 0, acked: 0, queued: 0, behind: false, lastActive: 0 };
+        return {
+          result: { attachment: n, session: info(s, x) },
+          after: () => {
+            sendSnapshot(s, s.attachments[key], 'attach');
+            const resized = !x.sizeOwner && activity(s, s.attachments[key]);
+            if (!resized) broadcastChanged(s, session);
+          },
+        };
+      });
+    },
+
+    type(s, { conn, session, text }) {
+      const c = s.conns[conn];
+      if (!c.open) return note(s, conn, `${conn} is not connected — nothing is sent`);
+      const a = attachmentOf(s, conn, session);
+      if (!a) return note(s, conn, `${conn} is not attached to ${session}; there is no attachment id to put in an INPUT frame`);
+      wire(s, conn, 'up', 'frame', { frame: 'INPUT', attachment: a.n, bytes: JSON.stringify(text) });
+      if (a.readOnly) {
+        wire(s, conn, 'down', 'note', { jsonrpc: '2.0', method: 'session.attachment.error', params: { attachment: a.n, code: ERR.READ_ONLY, message: 'attachment is read-only' } });
+        return;
+      }
+      const x = s.sessions[session];
+      if (x.status.state !== 'running') {
+        wire(s, conn, 'down', 'note', { jsonrpc: '2.0', method: 'session.attachment.error', params: { attachment: a.n, code: ERR.SESSION_EXITED, message: 'shell has exited' } });
+        return;
+      }
+      note(s, conn, `daemon writes ${text.length} bytes to ${session}'s PTY in one write`);
+      activity(s, a);
+      output(s, session, 1, 'echo');
+    },
+
+    resize(s, { conn, session, cols, rows }) {
+      const c = s.conns[conn];
+      c.cols = cols; c.rows = rows;
+      const a = attachmentOf(s, conn, session);
+      if (!a) return note(s, conn, `${conn} resized its window to ${cols}×${rows}, but is not attached to ${session}`);
+      call(s, conn, 'session.attachment.resize', { attachment: a.n, cols, rows }, () => {
+        a.cols = cols; a.rows = rows;
+        return { result: {}, after: () => activity(s, a) };
+      });
+    },
+
+    ack(s, { conn }) {
+      for (const a of Object.values(s.attachments).filter(a => a.conn === conn)) sendAck(s, a);
+    },
+
+    detach(s, { conn, session }) {
+      const a = attachmentOf(s, conn, session);
+      if (!a) return note(s, conn, `${conn} is not attached to ${session}`);
+      call(s, conn, 'session.attachment.close', { attachment: a.n }, () => ({ result: {}, after: () => { dropAttachment(s, a); broadcastChanged(s, session); } }));
+    },
+
+    restart(s, { conn, session }) {
+      call(s, conn, 'session.restart', { session }, () => {
+        const x = s.sessions[session];
+        if (!x) return { error: err(ERR.UNKNOWN_SESSION, `no session ${session}`) };
+        if (x.rootGone) return { error: err(ERR.ROOT_GONE, `${x.root} no longer exists; close the session instead`) };
+        note(s, conn, `daemon SIGHUPs the old shell and spawns a new one under the same id ${session}`);
+        x.status = { state: 'running' }; x.title = 'zsh'; x.foreground = 'zsh';
+        return {
+          result: { session: info(s, x) },
+          after: () => {
+            for (const a of attachmentsOn(s, session)) sendSnapshot(s, a, 'restart');
+            output(s, session, 2, 'prompt');
+            broadcastChanged(s, session);
+            agentsOn(s, session).forEach(ag => { ag.state = 'exited'; broadcast(s, 'agent.claude.changed', { agent: structuredClone(ag) }); });
+          },
+        };
+      });
+    },
+
+    close(s, { conn, session }) {
+      call(s, conn, 'session.close', { session }, () => {
+        if (!s.sessions[session]) return { error: err(ERR.UNKNOWN_SESSION, `no session ${session}`) };
+        return {
+          result: {},
+          after: () => {
+            for (const a of attachmentsOn(s, session)) dropAttachment(s, a);
+            delete s.sessions[session];
+            note(s, conn, `daemon SIGHUPs ${session} and forgets it`);
+            broadcast(s, 'session.removed', { session });
+            agentsOn(s, session).forEach(ag => { ag.state = 'exited'; ag.session = null; broadcast(s, 'agent.claude.changed', { agent: structuredClone(ag) }); });
+          },
+        };
+      });
+    },
+
+    busy(s, { conn, session }) {
+      call(s, conn, 'session.busy', { session }, () => {
+        const x = s.sessions[session];
+        if (!x) return { error: err(ERR.UNKNOWN_SESSION, `no session ${session}`) };
+        const busy = x.status.state === 'running' && x.foreground !== 'zsh';
+        return { result: { busy, processName: busy ? x.foreground : null } };
+      });
+    },
+
+    agentList(s, { conn }) {
+      call(s, conn, 'agent.claude.list', {}, () => ({ result: { agents: Object.values(s.agents).map(a => structuredClone(a)) } }));
+    },
+
+    dispatch(s, { conn, request, outcome }) {
+      call(s, conn, 'plane.dispatch', { request }, () => {
+        note(s, conn, 'plane module pipes the request to `bp dispatch --json` on stdin, never parses it');
+        if (outcome === 'refused') {
+          return { error: err(ERR.BP_REFUSED, 'bp refused the request', { error: 'plane_exists', code: 2, message: `plane '${request.name}' already exists`, problems: [], remedy: 'pick another name' }) };
+        }
+        return { result: { response: { action: 'plane_list', planes: Object.keys(s.host.planes).map(id => ({ id })) } } };
+      });
+    },
+
+    planeList(s, { conn }) {
+      call(s, conn, 'plane.list', {}, () => ({ result: { planes: planesModel(s) } }));
+    },
+
+    planeRefresh(s, { conn }) {
+      call(s, conn, 'plane.refresh', {}, () => ({
+        result: {},
+        after: () => { note(s, conn, 'plane module runs `bp list --json` now'); broadcast(s, 'plane.changed', { planes: planesModel(s) }); },
+      }));
+    },
+
+    planeProjects(s, { conn }) {
+      call(s, conn, 'plane.projects', {}, () => ({ result: { projects: [{ name: 'app', sourceRepoPresent: true }, { name: 'ui', sourceRepoPresent: true }, { name: 'api', sourceRepoPresent: false }] } }));
+    },
+
+    createDraft(s, { conn, id }) {
+      call(s, conn, 'plane.createDraft', { id }, () => {
+        if (s.host.planes[id]) return { error: err(ERR.PLANE_EXISTS, `${id} already exists in ${PLANES_DIR}`) };
+        s.host.planes[id] = { kind: 'draft', members: [], findings: [] };
+        s.host.dirs[planeRoot(id)] = [];
+        return { result: {}, after: () => { note(s, conn, `plane module makes the draft folder ${planeRoot(id)}`); broadcast(s, 'plane.changed', { planes: planesModel(s) }); } };
+      });
+    },
+
+    createPlane(s, { conn, id }) {
+      const args = { id, branch: id, members: [{ spec: '@app', branch: null }], intent: 'auto', noFetch: false, noScripts: false };
+      call(s, conn, 'plane.create', { args }, () => {
+        const existing = s.host.planes[id];
+        if (existing && existing.kind !== 'draft') return { error: err(ERR.PLANE_EXISTS, `${id} already exists`) };
+        const jid = 'j' + s.host.nextJob++;
+        s.host.jobs[jid] = { id: jid, kind: 'plane.create', status: 'running', phase: 'fetching', startedBy: conn, logLines: 0, detail: { plane: id } };
+        s.host.planes[id] = { kind: 'creating', members: [], findings: [] };
+        return {
+          result: { job: jid },
+          after: () => {
+            note(s, conn, `plane module spawns \`bp create ${id} --json\` as a job; the root module owns the job, not ${conn}'s connection`);
+            jobLog(s, jid, ['fetching @app (origin)…']);
+            broadcast(s, 'job.changed', { job: structuredClone(s.host.jobs[jid]) });
+            broadcast(s, 'plane.changed', { planes: planesModel(s) });
+          },
+        };
+      });
+    },
+
+    jobAdvance(s, { job, fail = false }) {
+      const j = s.host.jobs[job];
+      if (!j || j.status !== 'running') return note(s, 'daemon', `no running job ${job}`);
+      const plane = j.detail.plane;
+      const order = ['fetching', 'addingWorktrees', 'runningScripts'];
+      const i = order.indexOf(j.phase);
+      if (fail && j.phase === 'runningScripts') {
+        jobLog(s, job, ['$ pnpm install', 'ERR_PNPM_FETCH_404  GET https://registry.npmjs.org/@acme%2fui: Not Found', 'post-create script exited 1']);
+        j.status = 'scriptFailed';
+        landPlane(s, plane, ['script_failed']);
+      } else if (i < order.length - 1) {
+        j.phase = order[i + 1];
+        jobLog(s, job, j.phase === 'addingWorktrees' ? [`git worktree add ${planeRoot(plane)}/app -b ${plane}`] : ['$ pnpm install', 'Progress: resolved 812, reused 790, downloaded 22']);
+      } else {
+        jobLog(s, job, ['done']);
+        j.status = 'succeeded';
+        landPlane(s, plane, []);
+      }
+      broadcast(s, 'job.changed', { job: structuredClone(j) });
+      if (j.status !== 'running') broadcast(s, 'plane.changed', { planes: planesModel(s) });
+    },
+
+    jobList(s, { conn }) {
+      call(s, conn, 'job.list', {}, () => ({ result: { jobs: Object.values(s.host.jobs).map(j => structuredClone(j)) } }));
+    },
+
+    jobCancel(s, { conn, job }) {
+      call(s, conn, 'job.cancel', { job }, () => {
+        const j = s.host.jobs[job];
+        if (!j) return { error: err(ERR.UNKNOWN_JOB, `no job ${job}`) };
+        if (j.status !== 'running') return { error: err(ERR.JOB_FINISHED, `job ${job} already finished: ${statusText(j.status)}`) };
+        const plane = j.detail.plane;
+        return {
+          result: {},
+          after: () => {
+            note(s, conn, `root routes the cancel to the ${j.kind.split('.')[0]} module, which sends SIGINT to bp create ${plane}`);
+            if (j.phase === 'fetching') { j.status = 'nothingCreated'; delete s.host.planes[plane]; jobLog(s, job, ['interrupted; nothing was created']); }
+            else { j.status = 'partial'; landPlane(s, plane, ['partial']); jobLog(s, job, ['interrupted; partial plane left, `bp destroy` cleans it up']); }
+            broadcast(s, 'job.changed', { job: structuredClone(j) });
+            broadcast(s, 'plane.changed', { planes: planesModel(s) });
+          },
+        };
+      });
+    },
+
+    jobDismiss(s, { conn, job }) {
+      call(s, conn, 'job.dismiss', { job }, () => {
+        const j = s.host.jobs[job];
+        if (!j) return { error: err(ERR.UNKNOWN_JOB, `no job ${job}`) };
+        if (j.status === 'running') return { error: err(-32600, `job ${job} is still running; cancel it first`) };
+        delete s.host.jobs[job];
+        return { result: {}, after: () => broadcast(s, 'job.removed', { job }) };
+      });
+    },
+
+    fsList(s, { conn, path }) {
+      call(s, conn, 'fs.list', { path }, () => {
+        if (!pathExists(s, path)) return { error: err(ERR.NOT_FOUND, `${path} does not exist`) };
+        return { result: { entries: (s.host.dirs[path] || []).map(([name, kind, ignored]) => ({ name, kind, ignored })) } };
+      });
+    },
+
+    fsWatch(s, { conn, paths }) {
+      call(s, conn, 'fs.watch', { paths }, () => {
+        s.conns[conn].watch.fs = paths.filter(p => pathExists(s, p));
+        return { result: {}, after: () => note(s, conn, paths.length ? `fs watches ${paths.join(', ')} for ${conn} (replaces ${conn}'s previous fs scope)` : `fs stops watching for ${conn}`) };
+      });
+    },
+
+    gitStatus(s, { conn, paths }) {
+      call(s, conn, 'git.status', { paths }, () => {
+        const missing = paths.find(p => !s.host.repos[p]);
+        if (missing) return { error: err(ERR.NOT_FOUND, `${missing} is not a git repository`) };
+        return { result: { repos: paths.map(p => ({ path: p, status: s.host.repos[p] })) } };
+      });
+    },
+
+    gitWatch(s, { conn, paths }) {
+      call(s, conn, 'git.watch', { paths }, () => {
+        s.conns[conn].watch.git = paths.filter(p => s.host.repos[p]);
+        return { result: {}, after: () => note(s, conn, paths.length ? `git watches ${paths.join(', ')} for ${conn} (replaces ${conn}'s previous git scope)` : `git stops watching for ${conn}`) };
+      });
+    },
+
+    openInEditor(s, { conn, plane }) {
+      const c = s.conns[conn];
+      note(s, conn, c.via === 'local'
+        ? `client-side only: cc runs \`code ${planeRoot(plane)}\` itself. Nothing goes to the daemon.`
+        : `client-side only: B hands off to its own editor, e.g. vscode://vscode-remote/ssh-remote+laptop/${planeRoot(plane)}. Nothing goes to the daemon.`);
+    },
+
+    hostFileEdit(s, { repoPath, file }) {
+      const st = s.host.repos[repoPath];
+      if (!st) return;
+      if (!st.unstaged.some(c => c.path === file)) st.unstaged.push({ path: file, kind: 'modified' });
+      note(s, 'daemon', `someone saves ${repoPath}/${file} on the host; no folder listing changed, git status did`);
+      gitChanged(s, repoPath);
+    },
+
+    hostFileNew(s, { dir, name, repoPath, file }) {
+      (s.host.dirs[dir] = s.host.dirs[dir] || []).push([name, 'file', false]);
+      note(s, 'daemon', `a new file ${dir}/${name} appears on the host`);
+      fsChanged(s, dir);
+      if (repoPath && s.host.repos[repoPath]) { s.host.repos[repoPath].untracked.push(file); gitChanged(s, repoPath); }
+    },
+
+    hostPlaneAppears(s, { id }) {
+      s.host.planes[id] = { kind: 'plane', members: ['api'], findings: [] };
+      s.host.dirs[planeRoot(id)] = [['api', 'directory', false], ['plane.toml', 'file', false]];
+      s.host.repos[planeRoot(id) + '/api'] = repo(id);
+      note(s, 'daemon', `someone ran \`bp create ${id}\` in a terminal; the planes-dir watcher fires, the plane module re-runs bp list`);
+      broadcast(s, 'plane.changed', { planes: planesModel(s) });
+    },
+
+    hostPlaneGone(s, { id }) {
+      if (!s.host.planes[id]) return;
+      const root = planeRoot(id);
+      s.host.planes[id].kind = 'gone';
+      for (const k of Object.keys(s.host.dirs)) if (under(k, root)) delete s.host.dirs[k];
+      for (const k of Object.keys(s.host.repos)) if (under(k, root)) delete s.host.repos[k];
+      note(s, 'daemon', `${root} is deleted on disk. Each module notices on its own; none of them knows it was a plane except the plane module.`);
+      broadcast(s, 'plane.changed', { planes: planesModel(s) });
+      for (const x of Object.values(s.sessions)) {
+        if (under(x.root, root) && !x.rootGone) { x.rootGone = true; note(s, 'daemon', `sessions: ${x.id}'s root vanished; the shell keeps running`); broadcastChanged(s, x.id); }
+      }
+      for (const c of Object.values(s.conns)) {
+        for (const p of c.watch.fs.filter(p => under(p, root))) wire(s, c.id, 'down', 'note', { jsonrpc: '2.0', method: 'fs.changed', params: { path: p, gone: true } });
+        for (const p of c.watch.git.filter(p => under(p, root))) wire(s, c.id, 'down', 'note', { jsonrpc: '2.0', method: 'git.changed', params: { path: p, gone: true } });
+        c.watch.fs = c.watch.fs.filter(p => !under(p, root));
+        c.watch.git = c.watch.git.filter(p => !under(p, root));
+      }
+    },
+
+    programPrints(s, { session, kib }) {
+      const x = s.sessions[session];
+      if (!x) return note(s, 'daemon', `no session ${session}`);
+      if (x.status.state !== 'running') return note(s, 'daemon', `${session} has exited; nothing prints`);
+      note(s, 'daemon', `a program in ${session} prints ${kib} KiB; the daemon feeds all of it to the session's terminal emulator`);
+      let left = kib;
+      while (left > 0) {
+        const k = Math.min(KIB.chunk, left);
+        output(s, session, k, 'program');
+        settle(s);
+        left -= k;
+      }
+    },
+
+    shellExits(s, { session, code }) {
+      const x = s.sessions[session];
+      if (!x) return;
+      x.status = { state: 'exited', code }; x.foreground = 'zsh';
+      note(s, 'daemon', `${session}'s shell exits with code ${code}; session stays listed until closed or restarted`);
+      broadcastChanged(s, session);
+      agentsOn(s, session).forEach(ag => { ag.state = 'exited'; broadcast(s, 'agent.claude.changed', { agent: structuredClone(ag) }); });
+    },
+
+    agent(s, { session, event }) {
+      const x = s.sessions[session];
+      if (!x) return;
+      if (!moduleAvailable(s, 'agent.claude')) {
+        note(s, 'daemon', `agent.claude is unavailable (no claude at daemon start): the hook has nowhere to go; no agent state for ${session}`);
+        return;
+      }
+      let ag = agentsOn(s, session).find(a => a.state !== 'exited');
+      if (event === 'start') {
+        const id = `7f3a…c2${Object.keys(s.agents).length + 1}`;
+        ag = s.agents[id] = { agentSession: id, session, cwd: x.root, state: 'idle' };
+        x.title = 'claude'; x.foreground = 'claude';
+      } else if (!ag) {
+        return note(s, 'daemon', `no Claude Code running in ${session}`);
+      }
+      const hook = { start: 'SessionStart', prompt: 'UserPromptSubmit', permission: 'PermissionRequest', stop: 'Stop', exit: 'SessionEnd' }[event];
+      ({
+        start: () => {},
+        prompt: () => { ag.state = 'busy'; },
+        permission: () => { ag.state = 'waiting'; ag.waitingFor = 'permission'; },
+        stop: () => { ag.state = 'idle'; delete ag.waitingFor; },
+        exit: () => { ag.state = 'exited'; delete ag.waitingFor; x.title = 'zsh'; x.foreground = 'zsh'; },
+      })[event]();
+      note(s, 'daemon', `Claude Code hook ${hook} reaches agent.claude over its own channel (not this protocol)`);
+      broadcast(s, 'agent.claude.changed', { agent: structuredClone(ag) });
+      if (event === 'start' || event === 'exit') broadcastChanged(s, session);
+    },
+
+    daemonRestart(s) {
+      note(s, 'daemon', 'the daemon process dies (crash or reboot) and comes back');
+      for (const c of Object.values(s.conns)) {
+        if (c.open) transport(s, c.id, 'connection dropped: daemon went away');
+        Object.assign(c, { open: false, helloed: false, watch: { fs: [], git: [] } });
+      }
+      s.attachments = {};
+      s.daemon.generation += 1;
+      s.daemon.modules = probe(s.host.tools);
+      note(s, 'daemon', 'probes modules: ' + s.daemon.modules.map(m => m.available ? m.module : `${m.module} ✗`).join(', '));
+      for (const j of Object.values(s.host.jobs)) {
+        if (j.status === 'running') {
+          j.status = { failed: 'daemon restarted' };
+          landPlane(s, j.detail.plane, ['partial']);
+          note(s, 'daemon', `job ${j.id} (bp create ${j.detail.plane}) died with the daemon: failed (daemon restarted), plane left partial`);
+        }
+      }
+      for (const x of Object.values(s.sessions)) {
+        const gone = !pathExists(s, x.root);
+        Object.assign(x, { status: { state: 'running' }, offset: 0, sizeOwner: null, title: 'zsh', foreground: 'zsh', rootGone: gone });
+        note(s, 'daemon', `sessions restores ${x.id} as a fresh shell in ${gone ? '~ (its root is gone)' : x.root}`);
+      }
+      for (const ag of Object.values(s.agents)) {
+        if (ag.state === 'exited' || !ag.session) continue;
+        if (!moduleAvailable(s, 'agent.claude')) { ag.state = 'exited'; note(s, 'daemon', `cannot resume ${ag.agentSession}: agent.claude is unavailable`); continue; }
+        ag.state = 'resuming'; delete ag.waitingFor;
+        const x = s.sessions[ag.session];
+        x.title = 'claude'; x.foreground = 'claude';
+        note(s, 'daemon', `agent.claude asks sessions (its one dependency) to type \`claude --resume ${ag.agentSession}\` into ${ag.session}`);
+      }
+    },
+  };
+
+  // ---- protocol plumbing ---------------------------------------------------
+
+  function call(s, conn, method, params, handle) {
+    const c = s.conns[conn];
+    if (!c.open) return note(s, conn, `${conn} is not connected — nothing is sent`);
+    const id = c.nextId++;
+    wire(s, conn, 'up', 'req', { jsonrpc: '2.0', id, method, params });
+    if (method !== 'hello' && !c.helloed) {
+      return wire(s, conn, 'down', 'err', { jsonrpc: '2.0', id, error: err(ERR.HELLO_REQUIRED, 'first message must be hello') });
+    }
+    const mod = moduleOf(method);
+    if (mod && !moduleAvailable(s, mod)) {
+      const m = s.daemon.modules.find(m => m.module === mod);
+      return wire(s, conn, 'down', 'err', { jsonrpc: '2.0', id, error: err(ERR.MODULE_UNAVAILABLE, `module ${mod} is unavailable`, { module: mod, reason: m.reason }) });
+    }
+    const r = handle(c);
+    if (r.error) wire(s, conn, 'down', 'err', { jsonrpc: '2.0', id, error: r.error });
+    else wire(s, conn, 'down', 'res', { jsonrpc: '2.0', id, result: r.result });
+    if (r.after) r.after();
+  }
+
+  function moduleOf(method) {
+    if (method === 'hello' || method.startsWith('job.')) return null;
+    if (method.startsWith('agent.claude.')) return 'agent.claude';
+    return method.split('.')[0];
+  }
+
+  function probe(tools) {
+    return [
+      { module: 'session', available: true },
+      tools.claude ? { module: 'agent.claude', available: true } : { module: 'agent.claude', available: false, reason: 'claude not found on PATH' },
+      tools.bp ? { module: 'plane', available: true, info: { bp: tools.bp } } : { module: 'plane', available: false, reason: 'bp not found on PATH' },
+      { module: 'fs', available: true },
+      tools.git ? { module: 'git', available: true } : { module: 'git', available: false, reason: 'git not found on PATH' },
+    ];
+  }
+
+  function moduleAvailable(s, mod) { return s.daemon.modules.find(m => m.module === mod)?.available; }
+
+  function helloResult(s, v) {
+    return { protocolVersion: v, daemon: { name: s.daemon.name, version: s.daemon.version }, capabilities: structuredClone(s.daemon.modules) };
+  }
+
+  function output(s, session, kib) {
+    const x = s.sessions[session];
+    x.offset += kib;
+    for (const a of attachmentsOn(s, session)) {
+      if (a.behind) continue;
+      a.queued += kib;
+      if (a.queued > KIB.queueMax) {
+        a.behind = true;
+        note(s, a.conn, `attachment ${a.n} (${a.conn}) is ${a.queued} KiB behind: daemon drops its queue; it will get a fresh SNAPSHOT once it acks`);
+        a.queued = 0;
+        continue;
+      }
+      pump(s, a);
+    }
+  }
+
+  function pump(s, a) {
+    if (a.behind) return;
+    const room = KIB.window - (a.sent - a.acked);
+    const n = Math.min(a.queued, room);
+    if (n <= 0) return;
+    const x = s.sessions[a.session];
+    wire(s, a.conn, 'down', 'frame', { frame: 'OUTPUT', attachment: a.n, offset: `${x.offset - a.queued} KiB`, len: `${n} KiB` });
+    a.sent += n;
+    a.queued -= n;
+  }
+
+  function sendSnapshot(s, a, why) {
+    const x = s.sessions[a.session];
+    wire(s, a.conn, 'down', 'frame', { frame: 'SNAPSHOT', attachment: a.n, offset: `${x.offset} KiB`, len: `${KIB.snapshot} KiB`, why });
+    a.sent += KIB.snapshot;
+    a.queued = 0;
+    a.behind = false;
+  }
+
+  function sendAck(s, a) {
+    if (a.sent === a.acked) return;
+    wire(s, a.conn, 'up', 'note', { jsonrpc: '2.0', method: 'session.attachment.ack', params: { attachment: a.n, bytes: `${a.sent} KiB` } });
+    a.acked = a.sent;
+    if (a.behind) sendSnapshot(s, a, 'resync');
+    else pump(s, a);
+  }
+
+  function settle(s) {
+    for (let i = 0; i < 20; i++) {
+      const pending = Object.values(s.attachments).filter(a => s.conns[a.conn].autoAck && a.sent > a.acked);
+      if (!pending.length) return;
+      for (const a of pending) sendAck(s, a);
+    }
+  }
+
+  function activity(s, a) {
+    a.lastActive = s.step;
+    if (a.ignoreSize) return false;
+    const x = s.sessions[a.session];
+    const same = x.size.cols === a.cols && x.size.rows === a.rows;
+    x.sizeOwner = a.key;
+    if (same) return false;
+    x.size = { cols: a.cols, rows: a.rows };
+    note(s, a.conn, `daemon resizes ${x.id}'s PTY to ${a.cols}×${a.rows} (latest active attachment wins) and sends SIGWINCH`);
+    broadcastChanged(s, x.id);
+    return true;
+  }
+
+  function dropAttachment(s, a) {
+    const x = s.sessions[a.session];
+    if (x && x.sizeOwner === a.key) x.sizeOwner = null;
+    delete s.attachments[a.key];
+  }
+
+  function broadcastChanged(s, session) {
+    const x = s.sessions[session];
+    if (x) broadcast(s, 'session.changed', { session: info(s, x) });
+  }
+
+  function broadcast(s, method, params) {
+    for (const c of Object.values(s.conns)) {
+      if (c.open && c.helloed) wire(s, c.id, 'down', 'note', { jsonrpc: '2.0', method, params });
+    }
+  }
+
+  function info(s, x) {
+    const out = { id: x.id, key: x.key, seq: x.seq, root: x.root, title: x.title, foreground: x.foreground, status: x.status, rootGone: x.rootGone, size: x.size, attached: attachmentsOn(s, x.id).length };
+    if (x.plane) out.plane = x.plane;
+    return structuredClone(out);
+  }
+
+  function planesModel(s) {
+    return {
+      planesDir: PLANES_DIR,
+      planes: Object.entries(s.host.planes).map(([id, p]) => ({ id, root: planeRoot(id), kind: p.kind, members: p.members.map(m => ({ name: m, path: `${planeRoot(id)}/${m}` })), findings: p.findings })),
+    };
+  }
+
+  function landPlane(s, plane, findings) {
+    s.host.planes[plane] = { kind: 'plane', members: ['app'], findings };
+    s.host.dirs[planeRoot(plane)] = [['app', 'directory', false], ['plane.toml', 'file', false]];
+    s.host.repos[planeRoot(plane) + '/app'] = repo(plane);
+  }
+
+  function jobLog(s, job, lines) {
+    s.host.jobs[job].logLines += lines.length;
+    broadcast(s, 'job.log', { job, lines });
+  }
+
+  function fsChanged(s, path) {
+    for (const c of Object.values(s.conns)) {
+      if (!c.open) continue;
+      if (c.helloed && c.watch.fs.includes(path)) wire(s, c.id, 'down', 'note', { jsonrpc: '2.0', method: 'fs.changed', params: { path } });
+      else note(s, c.id, `${c.id} does not watch ${path}: nothing sent`);
+    }
+  }
+
+  function gitChanged(s, path) {
+    for (const c of Object.values(s.conns)) {
+      if (!c.open) continue;
+      if (c.helloed && c.watch.git.includes(path)) wire(s, c.id, 'down', 'note', { jsonrpc: '2.0', method: 'git.changed', params: { path, status: s.host.repos[path] } });
+      else note(s, c.id, `${c.id} does not watch git in ${path}: nothing sent`);
+    }
+  }
+
+  function pathExists(s, p) { return p === '~' || Object.keys(s.host.dirs).some(k => under(k, p)) || Object.keys(s.host.repos).some(k => under(k, p)); }
+  function under(p, root) { return p === root || p.startsWith(root + '/'); }
+  function planeRoot(id) { return `${PLANES_DIR}/${id}`; }
+  function attachmentsOn(s, session) { return Object.values(s.attachments).filter(a => a.session === session); }
+  function attachmentOf(s, conn, session) { return Object.values(s.attachments).find(a => a.conn === conn && a.session === session); }
+  function agentsOn(s, session) { return Object.values(s.agents).filter(a => a.session === session); }
+  function statusText(st) { return typeof st === 'string' ? st : `failed (${st.failed})`; }
+  function err(code, message, data) { return data === undefined ? { code, message } : { code, message, data }; }
+  function wire(s, conn, dir, kind, body) { s.log.push({ step: s.step, conn, dir, kind, via: s.conns[conn]?.via, body }); }
+  function note(s, conn, text) { s.log.push({ step: s.step, conn, dir: 'note', kind: 'note', body: text }); }
+  function transport(s, conn, text) { s.log.push({ step: s.step, conn, dir: 'transport', kind: 'transport', body: text }); }
+
+  function repo(branch, extra = {}) {
+    return { head: { kind: 'branch', name: branch }, tracking: { ahead: 0, behind: 0 }, staged: [], unstaged: [], untracked: [], ...extra };
+  }
+
+  return { initial, step, SPEC, KIB, statusText, planeRoot };
+})();
+
+/* ============================================================================
+ * Page shell: throwaway.
+ * ==========================================================================*/
+let world = Protocol.initial();
+let prevWorld = world;
+let activeTab = 0;
+let scenarioPos = -1;
+
+const AH = (c) => [{ type: 'connect', conn: c }, { type: 'hello', conn: c }];
+
+const SCENARIOS = [
+  {
+    name: 'Startup',
+    text: 'cc starts and rebuilds what its old snapshot() call returned. hello now tells it which modules exist; then one list call per module it needs.',
+    watch: 'Five round trips after hello (six through the gateway counting its own hello). Is that fine, or is a root-level snapshot worth having, given each module owns its own state?',
+    steps: [
+      ['A connects + hello (see capabilities[])', AH('A')],
+      ['A lists planes', { type: 'planeList', conn: 'A' }],
+      ['A lists sessions', { type: 'list', conn: 'A' }],
+      ['A lists agents', { type: 'agentList', conn: 'A' }],
+      ['A lists jobs', { type: 'jobList', conn: 'A' }],
+      ['A lists projects', { type: 'planeProjects', conn: 'A' }],
+    ],
+  },
+  {
+    name: 'Plane deleted under a session',
+    text: 'A has a session in "api", the Files panel on api\'s root and Source control on its repo. Then the "api" folder is deleted on disk. Each module reacts on its own, without knowing what a plane is.',
+    watch: 'cc must stitch four signals into one "gone plane": plane.changed (kind gone), session.changed (rootGone), fs.changed {gone} and git.changed {gone}. Is that clear, or should cc only need plane.changed?',
+    steps: [
+      ['A connects + hello', AH('A')],
+      ['A opens a session in "api" and attaches', [{ type: 'open', conn: 'A', plane: 'api' }, { type: 'attach', conn: 'A', session: 's1' }]],
+      ['A watches ~/planes/api and its repo', [{ type: 'fsWatch', conn: 'A', paths: ['~/planes/api'] }, { type: 'gitWatch', conn: 'A', paths: ['~/planes/api/api'] }]],
+      ['the "api" folder is deleted', { type: 'hostPlaneGone', id: 'api' }],
+      ['A types into s1: the shell still runs', { type: 'type', conn: 'A', session: 's1', text: 'pwd\r' }],
+      ['A tries to restart s1', { type: 'restart', conn: 'A', session: 's1' }],
+      ['A tries to open a new session in "api"', { type: 'open', conn: 'A', plane: 'api' }],
+      ['A closes s1', { type: 'close', conn: 'A', session: 's1' }],
+    ],
+  },
+  {
+    name: 'Missing modules',
+    text: 'The host has no bp. The daemon still starts: sessions, fs and git work, the plane module is unavailable. Then bp is installed, but nothing changes until the daemon restarts.',
+    watch: 'Availability is probed only at start. After `brew install bp` cc still says "bp not found" until the daemon restarts. Who tells the user to restart it, and should there be a re-probe call?',
+    steps: [
+      ['bp is not installed; daemon (re)starts', [{ type: 'setTool', tool: 'bp', on: false }, { type: 'daemonRestart' }]],
+      ['A connects + hello', AH('A')],
+      ['A lists planes', { type: 'planeList', conn: 'A' }],
+      ['A still opens a session in ~ (no plane)', { type: 'open', conn: 'A', root: '~' }],
+      ['bp gets installed', { type: 'setTool', tool: 'bp', on: true }],
+      ['A lists planes again', { type: 'planeList', conn: 'A' }],
+      ['daemon restarts; A reconnects and lists', [{ type: 'daemonRestart' }, ...AH('A'), { type: 'planeList', conn: 'A' }]],
+    ],
+  },
+  {
+    name: 'Create a plane',
+    text: 'A drafts and then creates plane "feat-x". plane.create starts a job of kind plane.create; job.* belongs to the root module. Both clients see the phases, the log and the planes list flip from creating to plane.',
+    watch: 'job.log goes to every connection, including B who never looked at this job. Should log lines need a job.follow?',
+    steps: [
+      ['A and B connect + hello', [...AH('A'), ...AH('B')]],
+      ['A makes a draft "feat-x"', { type: 'createDraft', conn: 'A', id: 'feat-x' }],
+      ['A creates "feat-x"', { type: 'createPlane', conn: 'A', id: 'feat-x' }],
+      ['bp moves to adding worktrees', { type: 'jobAdvance', job: 'j1' }],
+      ['bp moves to running scripts', { type: 'jobAdvance', job: 'j1' }],
+      ['bp finishes', { type: 'jobAdvance', job: 'j1' }],
+      ['A dismisses the finished job', { type: 'jobDismiss', conn: 'A', job: 'j1' }],
+    ],
+  },
+  {
+    name: 'Create outlives cc',
+    text: 'A starts a plane creation and quits. The daemon owns the job, so it keeps going, and A finds it again on reconnect. Then a second creation is caught by a daemon crash.',
+    watch: 'A job killed by a daemon restart comes back failed (daemon restarted) with a partial plane. Who may dismiss or cancel a job: anyone, or only startedBy?',
+    steps: [
+      ['A connects, hello, creates "feat-y"', [...AH('A'), { type: 'createPlane', conn: 'A', id: 'feat-y' }]],
+      ['cc quits (A drops)', { type: 'disconnect', conn: 'A' }],
+      ['bp keeps going and finishes', [{ type: 'jobAdvance', job: 'j1' }, { type: 'jobAdvance', job: 'j1' }, { type: 'jobAdvance', job: 'j1' }]],
+      ['A reconnects, lists jobs', [...AH('A'), { type: 'jobList', conn: 'A' }]],
+      ['A creates "feat-z"; bp reaches worktrees', [{ type: 'createPlane', conn: 'A', id: 'feat-z' }, { type: 'jobAdvance', job: 'j2' }]],
+      ['the daemon crashes and comes back', { type: 'daemonRestart' }],
+      ['A reconnects, lists jobs and planes', [...AH('A'), { type: 'jobList', conn: 'A' }, { type: 'planeList', conn: 'A' }]],
+    ],
+  },
+  {
+    name: 'Cancel & failure',
+    text: 'One creation is cancelled while still fetching (nothing on disk). Another gets far enough that a post-create script fails. Then a cancel arrives too late.',
+    watch: 'Cancel answers {} at once and the real outcome arrives as job.changed. Clear enough?',
+    steps: [
+      ['A connects + hello', AH('A')],
+      ['A creates "feat-a" and cancels it while fetching', [{ type: 'createPlane', conn: 'A', id: 'feat-a' }, { type: 'jobCancel', conn: 'A', job: 'j1' }]],
+      ['A creates "feat-b"', { type: 'createPlane', conn: 'A', id: 'feat-b' }],
+      ['bp gets to running scripts', [{ type: 'jobAdvance', job: 'j2' }, { type: 'jobAdvance', job: 'j2' }]],
+      ['the post-create script fails', { type: 'jobAdvance', job: 'j2', fail: true }],
+      ['A tries to cancel the finished job', { type: 'jobCancel', conn: 'A', job: 'j2' }],
+      ['A tries to create "web", which exists', { type: 'createPlane', conn: 'A', id: 'web' }],
+    ],
+  },
+  {
+    name: 'Files & source control',
+    text: 'fs and git take paths. A gets web\'s member paths from plane.list, then watches folders and repos by path. B looks at api. Changes reach only the client watching that path.',
+    watch: 'git is per repo path, so cc asks for N repos with N paths and gets one git.changed per repo. And fs.watch / git.watch still replace the whole scope: one panel per connection. Enough once cc has two windows?',
+    steps: [
+      ['A and B connect + hello', [...AH('A'), ...AH('B')]],
+      ['A lists planes (member paths)', { type: 'planeList', conn: 'A' }],
+      ['A lists ~/planes/web and web/app/src', [{ type: 'fsList', conn: 'A', path: '~/planes/web' }, { type: 'fsList', conn: 'A', path: '~/planes/web/app/src' }]],
+      ['A watches those folders and both repos', [{ type: 'fsWatch', conn: 'A', paths: ['~/planes/web', '~/planes/web/app/src'] }, { type: 'gitWatch', conn: 'A', paths: ['~/planes/web/app', '~/planes/web/ui'] }]],
+      ['A reads git status of both repos', { type: 'gitStatus', conn: 'A', paths: ['~/planes/web/app', '~/planes/web/ui'] }],
+      ['B reads git status of api and watches its root', [{ type: 'gitStatus', conn: 'B', paths: ['~/planes/api/api'] }, { type: 'fsWatch', conn: 'B', paths: ['~/planes/api'] }]],
+      ['someone saves web/app/src/app.tsx', { type: 'hostFileEdit', repoPath: '~/planes/web/app', file: 'src/app.tsx' }],
+      ['a new file web/app/src/router.ts appears', { type: 'hostFileNew', dir: '~/planes/web/app/src', name: 'router.ts', repoPath: '~/planes/web/app', file: 'src/router.ts' }],
+      ['A lists /etc (allowed: any readable path)', { type: 'fsList', conn: 'A', path: '/etc' }],
+      ['B opens api in VS Code', { type: 'openInEditor', conn: 'B', plane: 'api' }],
+    ],
+  },
+  {
+    name: 'Agent + daemon restart',
+    text: 'Claude Code runs in s1. Its state now arrives as agent.claude.changed, keyed by agent session, with s1 as a reference. Then the daemon crashes: sessions restores s1, and agent.claude resumes Claude in it.',
+    watch: 'cc must join agent.claude.changed to its tab by session id. And after a restart s1 has the same id but a fresh PTY at offset 0: does the session need a generation number?',
+    steps: [
+      ['A connects, hello, opens s1, attaches', [...AH('A'), { type: 'open', conn: 'A', plane: 'web' }, { type: 'attach', conn: 'A', session: 's1' }]],
+      ['Claude Code starts in s1', { type: 'agent', session: 's1', event: 'start' }],
+      ['User submits a prompt', { type: 'agent', session: 's1', event: 'prompt' }],
+      ['Claude asks for permission', { type: 'agent', session: 's1', event: 'permission' }],
+      ['Daemon crashes and comes back', { type: 'daemonRestart' }],
+      ['A reconnects, lists sessions and agents', [...AH('A'), { type: 'list', conn: 'A' }, { type: 'agentList', conn: 'A' }]],
+    ],
+  },
+  {
+    name: 'Quit check',
+    text: 'cc asks before quitting whether anything is busy. With the daemon, quitting cc no longer kills sessions: Claude keeps working.',
+    watch: 'Does cc still need to ask on quit at all?',
+    steps: [
+      ['A connects, hello, opens s1, attaches', [...AH('A'), { type: 'open', conn: 'A', plane: 'web' }, { type: 'attach', conn: 'A', session: 's1' }]],
+      ['Claude starts and goes busy', [{ type: 'agent', session: 's1', event: 'start' }, { type: 'agent', session: 's1', event: 'prompt' }]],
+      ['user presses ⌘Q: cc asks if s1 is busy', { type: 'busy', conn: 'A', session: 's1' }],
+      ['cc quits', { type: 'disconnect', conn: 'A' }],
+      ['Claude finishes while nobody watches', { type: 'agent', session: 's1', event: 'stop' }],
+      ['cc starts again: hello, sessions, agents', [...AH('A'), { type: 'list', conn: 'A' }, { type: 'agentList', conn: 'A' }]],
+    ],
+  },
+  {
+    name: 'Happy path',
+    text: 'cc opens a session in plane "web" (root ~/planes/web, plane id "web"), attaches and types. The attach answer comes first, then exactly one SNAPSHOT, then live OUTPUT.',
+    watch: 'session.attachment.open / close is longer than attach / detach. Worth it for the one-namespace-per-concept rule?',
+    steps: [
+      ['A connects', { type: 'connect', conn: 'A' }],
+      ['A says hello', { type: 'hello', conn: 'A' }],
+      ['A opens a session in "web"', { type: 'open', conn: 'A', plane: 'web' }],
+      ['A attaches to s1', { type: 'attach', conn: 'A', session: 's1' }],
+      ['A types "ls"', { type: 'type', conn: 'A', session: 's1', text: 'ls\r' }],
+      ['A lists sessions', { type: 'list', conn: 'A' }],
+    ],
+  },
+  {
+    name: 'Two clients',
+    text: 'A on the desktop and B on the phone both attach to s1. Both type; both resize. The latest active attachment owns the PTY size.',
+    watch: 'B attached while A owned the size, so the PTY stayed 120×40 until B typed. Right call?',
+    steps: [
+      ['A connects + hello', AH('A')],
+      ['A opens and attaches s1', [{ type: 'open', conn: 'A', plane: 'web' }, { type: 'attach', conn: 'A', session: 's1' }]],
+      ['B connects through the gateway + hello', AH('B')],
+      ['B attaches to s1', { type: 'attach', conn: 'B', session: 's1' }],
+      ['B types "git status"', { type: 'type', conn: 'B', session: 's1', text: 'git status\r' }],
+      ['A resizes its window to 140×45', { type: 'resize', conn: 'A', session: 's1', cols: 140, rows: 45 }],
+      ['B detaches', { type: 'detach', conn: 'B', session: 's1' }],
+    ],
+  },
+  {
+    name: 'Slow client',
+    text: 'B stalls while a build prints 512 KiB. A keeps up. B fills its window, queues, is marked behind, and on waking gets one fresh SNAPSHOT.',
+    watch: 'The PTY never waits for B. Is drop-and-resnapshot OK for an agent session?',
+    steps: [
+      ['Both connect, A opens s1, both attach', [...AH('A'), { type: 'open', conn: 'A', plane: 'web' }, { type: 'attach', conn: 'A', session: 's1' }, ...AH('B'), { type: 'attach', conn: 'B', session: 's1' }]],
+      ['B stalls', { type: 'setAutoAck', conn: 'B', on: false }],
+      ['A build prints 512 KiB in s1', { type: 'programPrints', session: 's1', kib: 512 }],
+      ['B wakes up and acks what it has', [{ type: 'setAutoAck', conn: 'B', on: true }, { type: 'ack', conn: 'B' }]],
+      ['Another 8 KiB prints', { type: 'programPrints', session: 's1', kib: 8 }],
+    ],
+  },
+  {
+    name: 'Through the gateway',
+    text: 'B reaches the host through bpg-server. The gateway terminates hello, does its own upstream, and adds `host`. capabilities[] pass through untouched.',
+    watch: 'One WebSocket per host: a UI showing 3 hosts holds 3 sockets. Acceptable?',
+    steps: [
+      ['B connects (WebSocket → gateway → ssh)', { type: 'connect', conn: 'B' }],
+      ['B lists sessions before hello', { type: 'list', conn: 'B' }],
+      ['B says hello', { type: 'hello', conn: 'B' }],
+      ['B opens a session in "api"', { type: 'open', conn: 'B', plane: 'api' }],
+      ['B runs bp: plane.dispatch(plane_list)', { type: 'dispatch', conn: 'B', request: { action: 'plane_list' } }],
+    ],
+  },
+  {
+    name: 'Version mismatch',
+    text: 'A cc that requires protocol 2 meets a daemon that speaks only 1. Then a cc that speaks 1..2 settles on 1.',
+    watch: 'Should the error tell the client how to fix it, or is {supported} enough?',
+    steps: [
+      ['A becomes a newer cc: speaks only 2', { type: 'setProtocol', conn: 'A', min: 2, max: 2 }],
+      ['A connects + hello', AH('A')],
+      ['A disconnects', { type: 'disconnect', conn: 'A' }],
+      ['A speaks 1..2 instead', { type: 'setProtocol', conn: 'A', min: 1, max: 2 }],
+      ['A connects + hello', AH('A')],
+    ],
+  },
+  {
+    name: 'Illegal & edge',
+    text: 'Things that should fail cleanly: a read-only attachment types, input to an exited shell, bp refusing, closing a session someone else is attached to.',
+    watch: 'INPUT has no reply, so errors come back as session.attachment.error. Worth it?',
+    steps: [
+      ['Both connect + hello; A opens s1', [...AH('A'), { type: 'open', conn: 'A', plane: 'web' }, ...AH('B')]],
+      ['B attaches read-only', { type: 'attach', conn: 'B', session: 's1', readOnly: true, ignoreSize: true }],
+      ['B tries to type', { type: 'type', conn: 'B', session: 's1', text: 'rm -rf /\r' }],
+      ['A asks bp to create "web" again', { type: 'dispatch', conn: 'A', request: { action: 'plane_create', name: 'web' }, outcome: 'refused' }],
+      ['s1\'s shell exits (code 0)', { type: 'shellExits', session: 's1', code: 0 }],
+      ['A attaches and types into the exited shell', [{ type: 'attach', conn: 'A', session: 's1' }, { type: 'type', conn: 'A', session: 's1', text: 'ls\r' }]],
+      ['A restarts s1', { type: 'restart', conn: 'A', session: 's1' }],
+      ['A closes s1 while B is attached', { type: 'close', conn: 'A', session: 's1' }],
+    ],
+  },
+];
+
+function dispatch(actions) {
+  prevWorld = world;
+  for (const a of [].concat(actions)) world = Protocol.step(world, a);
+  render();
+}
+
+function render() {
+  renderState();
+  renderLog();
+  renderFreeplay();
+  renderScenario();
+}
+
+function renderState() {
+  const w = world, p = prevWorld;
+  const changed = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
+  const conns = Object.values(w.conns).map(c => {
+    const pc = p.conns[c.id];
+    const status = !c.open ? '<span class="tag bad">disconnected</span>' : c.helloed ? '<span class="tag">ready</span>' : '<span class="tag warn">connected, no hello</span>';
+    return `<tr class="${changed(c, pc) ? 'changed' : ''}"><td><b>${c.label}</b></td><td>${status}</td><td>protocol ${c.protocol.min}..${c.protocol.max}</td><td>${c.cols}×${c.rows}</td><td>${c.autoAck ? 'keeps up' : '<span class="tag warn">stalled</span>'}</td><td>${watchText(c)}</td></tr>`;
+  }).join('');
+  const mods = w.daemon.modules.map(m => {
+    const pm = p.daemon.modules.find(x => x.module === m.module);
+    const tool = { plane: 'bp', git: 'git', 'agent.claude': 'claude' }[m.module];
+    const installed = tool ? (w.host.tools[tool] ? 'installed' : '<span class="tag bad">missing</span>') : '—';
+    return `<tr class="${changed(m, pm) || (tool && changed(w.host.tools[tool], p.host.tools[tool])) ? 'changed' : ''}"><td class="mono">${m.module}</td><td>${m.available ? 'available' : `<span class="tag bad">unavailable</span> ${m.reason}`}</td><td>${tool ? `${tool}: ${installed}` : ''}</td></tr>`;
+  }).join('');
+  const sessions = Object.values(w.sessions).map(x => {
+    const px = p.sessions[x.id];
+    const st = (x.status.state === 'running' ? 'running' : `<span class="tag bad">exited ${x.status.code}</span>`) + `<br><span class="empty" style="font-style:normal">fg: ${x.foreground}</span>`;
+    const owner = x.sizeOwner ? x.sizeOwner.replace('#', ' att ') : 'nobody';
+    return `<tr class="${changed(x, px) ? 'changed' : ''}"><td><b>${x.id}</b></td><td class="mono">${x.root}${x.rootGone ? ' <span class="tag bad">root gone</span>' : ''}<br><span class="empty" style="font-style:normal">plane: ${x.plane || '—'}</span></td><td>${st}</td><td>${x.size.cols}×${x.size.rows}<br><span class="empty" style="font-style:normal">set by ${owner}</span></td><td>${x.offset} KiB</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="empty">no sessions</td></tr>';
+  const agents = Object.values(w.agents).map(a => {
+    return `<tr class="${changed(a, p.agents[a.agentSession]) ? 'changed' : ''}"><td class="mono">${a.agentSession}</td><td>${a.session || '—'}</td><td>${a.state}${a.waitingFor ? ' (' + a.waitingFor + ')' : ''}</td></tr>`;
+  }).join('') || '<tr><td colspan="3" class="empty">no agent sessions</td></tr>';
+  const atts = Object.values(w.attachments).map(a => {
+    const pa = p.attachments[a.key];
+    const inflight = a.sent - a.acked;
+    const pct = Math.min(100, inflight / Protocol.KIB.window * 100);
+    const flags = [a.readOnly && 'read-only', a.ignoreSize && 'ignores size'].filter(Boolean).join(', ') || '—';
+    return `<tr class="${changed(a, pa) ? 'changed' : ''}"><td><b>${a.conn}</b> att ${a.n}</td><td>${a.session}</td><td>${inflight} / ${Protocol.KIB.window} KiB unacked<div class="bar ${a.behind ? 'stale' : ''}"><span style="width:${pct}%"></span></div></td><td>${a.behind ? '<span class="tag warn">behind — awaits resync</span>' : a.queued + ' KiB queued'}</td><td>${flags}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="empty">nobody attached</td></tr>';
+  const kindTag = { plane: '', draft: '<span class="tag">draft</span>', creating: '<span class="tag warn">creating</span>', gone: '<span class="tag bad">gone</span>' };
+  const planes = Object.entries(w.host.planes).map(([id, pl]) => {
+    return `<tr class="${changed(pl, p.host.planes[id]) ? 'changed' : ''}"><td><b>${id}</b> ${kindTag[pl.kind]}</td><td>${pl.members.join(', ') || '—'}</td><td>${pl.findings.join(', ') || '—'}</td></tr>`;
+  }).join('');
+  const statusTag = st => st === 'running' ? '<span class="tag">running</span>' : st === 'succeeded' ? 'succeeded' : `<span class="tag ${st === 'scriptFailed' ? 'warn' : 'bad'}">${Protocol.statusText(st)}</span>`;
+  const jobs = Object.values(w.host.jobs).map(j => {
+    return `<tr class="${changed(j, p.host.jobs[j.id]) ? 'changed' : ''}"><td><b>${j.id}</b></td><td class="mono">${j.kind} ${j.detail.plane}</td><td>${j.phase}</td><td>${statusTag(j.status)}</td><td>${j.logLines} lines</td><td>${j.startedBy}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty">no jobs</td></tr>';
+  const sub = t => `<span style="text-transform:none;letter-spacing:0;font-weight:400">${t}</span>`;
+  document.getElementById('state').innerHTML = `
+    <h2>Current state ${sub('(changed rows tinted)')}</h2>
+    <h3>Clients</h3><table><tr><th>client</th><th>link</th><th>version</th><th>window</th><th>drawing</th><th>watches</th></tr>${conns}</table>
+    <h3>Modules <span class="tag">daemon ${w.daemon.version} · start #${w.daemon.generation}</span></h3>
+    <table><tr><th>module</th><th>at daemon start</th><th>on the host now</th></tr>${mods}</table>
+    <h3>Planes on the host <span class="tag">~/planes</span></h3>
+    <table><tr><th>plane</th><th>members</th><th>findings</th></tr>${planes}</table>
+    <h3>Jobs <span class="tag">root</span></h3>
+    <table><tr><th>job</th><th>kind</th><th>phase</th><th>status</th><th>log</th><th>started by</th></tr>${jobs}</table>
+    <h3>Sessions</h3>
+    <table><tr><th>id</th><th>root</th><th>shell</th><th>PTY size</th><th>output so far</th></tr>${sessions}</table>
+    <h3>Agent sessions <span class="tag">agent.claude</span></h3>
+    <table><tr><th>agent session</th><th>session</th><th>state</th></tr>${agents}</table>
+    <h3>Attachments</h3>
+    <table><tr><th>who</th><th>session</th><th>flow window</th><th>backlog</th><th>flags</th></tr>${atts}</table>`;
+}
+
+function watchText(c) {
+  const parts = [];
+  if (c.watch.fs.length) parts.push('fs: ' + c.watch.fs.join(', '));
+  if (c.watch.git.length) parts.push('git: ' + c.watch.git.join(', '));
+  return parts.join('<br>') || '—';
+}
+
+function renderLog() {
+  const from = prevWorld.log.length;
+  const rows = world.log.map((e, i) => {
+    const latest = i >= from ? 'latest' : '';
+    let who, body, cls = 'k-' + e.kind;
+    const arrow = { up: '→ daemon', down: '← daemon', 'gw-up': 'gw → daemon', 'gw-down': 'gw ← daemon', note: '', transport: '' }[e.dir];
+    if (e.kind === 'note' && typeof e.body === 'string') { who = e.conn === 'daemon' ? 'daemon' : e.conn; body = e.body; }
+    else if (e.kind === 'transport') { who = e.conn; body = '⇄ ' + e.body; }
+    else if (e.kind === 'frame') { who = `${e.conn} ${arrow}`; const { frame, ...rest } = e.body; body = `⟦${frame}⟧ ` + Object.entries(rest).map(([k, v]) => `${k}=${v}`).join(' '); }
+    else { who = `${e.conn} ${arrow}`; body = JSON.stringify(e.body); cls = e.kind === 'err' ? 'k-err' : ''; }
+    if (e.via === 'gateway' && (e.dir === 'up' || e.dir === 'down')) who += ' ⋯gw';
+    return `<div class="row ${latest}"><span class="who">${e.step}</span><span class="who">${who}</span><pre class="${cls}">${escapeHtml(body)}</pre></div>`;
+  });
+  const el = document.getElementById('log');
+  el.innerHTML = rows.join('') || '<p class="empty">Nothing on the wire yet. Click something.</p>';
+  const first = el.querySelector('.latest');
+  if (first) el.scrollTop = first.offsetTop - el.offsetTop - 8;
+}
+
+function renderFreeplay() {
+  const sessions = Object.keys(world.sessions);
+  const sel = id => `<select id="${id}">${sessions.map(s => `<option>${s}</option>`).join('') || '<option disabled>—</option>'}</select>`;
+  const keep = id => document.getElementById(id)?.value;
+  const prev = Object.fromEntries(['fp-sess-A', 'fp-sess-B', 'fp-sess-D', 'fp-plane-A', 'fp-plane-B'].map(id => [id, keep(id)]));
+  const livePlanes = Object.entries(world.host.planes).filter(([, pl]) => pl.kind === 'plane').map(([id]) => id);
+  const psel = id => `<select id="${id}">${livePlanes.map(x => `<option>${x}</option>`).join('')}</select>`;
+  const jobIds = Object.keys(world.host.jobs);
+  const lastJob = jobIds[jobIds.length - 1] || 'j?';
+  const nextNew = 'feat-' + world.host.nextJob;
+  const t = world.host.tools;
+  const clientRow = c => `
+    <div class="controls"><span class="label"><b>${world.conns[c].label}</b></span></div>
+    <div class="controls">
+      <button data-a='{"type":"connect","conn":"${c}"}'>Connect</button>
+      <button data-a='{"type":"hello","conn":"${c}"}'>Hello</button>
+      <button data-a='{"type":"list","conn":"${c}"}'>List sessions</button>
+      <button data-a='{"type":"agentList","conn":"${c}"}'>List agents</button>
+      <button data-a='{"type":"open","conn":"${c}","plane":"web"}'>Open in "web"</button>
+      <button data-a='{"type":"open","conn":"${c}","root":"~"}'>Open in ~ (no plane)</button>
+      <button data-a='{"type":"disconnect","conn":"${c}"}'>Drop connection</button>
+      <button data-a='{"type":"setAutoAck","conn":"${c}","on":${!world.conns[c].autoAck}}'>${world.conns[c].autoAck ? 'Stall' : 'Keep up'}</button>
+      <button data-a='{"type":"ack","conn":"${c}"}'>Ack now</button>
+    </div>
+    <div class="controls">
+      <span class="label">on session ${sel('fp-sess-' + c)}</span>
+      <button data-s="${c}" data-t="attach">Attach</button>
+      <button data-s="${c}" data-t="attach-ro">Attach read-only</button>
+      <button data-s="${c}" data-t="type">Type "ls"</button>
+      <button data-s="${c}" data-t="resize">Resize window</button>
+      <button data-s="${c}" data-t="detach">Detach</button>
+      <button data-s="${c}" data-t="restart">Restart</button>
+      <button data-s="${c}" data-t="close">Close</button>
+      <button data-s="${c}" data-t="busy">Busy?</button>
+    </div>
+    <div class="controls">
+      <span class="label">planes &amp; jobs</span>
+      <button data-a='{"type":"planeList","conn":"${c}"}'>List planes</button>
+      <button data-a='{"type":"planeRefresh","conn":"${c}"}'>Refresh</button>
+      <button data-a='{"type":"planeProjects","conn":"${c}"}'>Projects</button>
+      <button data-a='{"type":"dispatch","conn":"${c}","request":{"action":"plane_list"}}'>bp: list planes</button>
+      <button data-a='{"type":"createDraft","conn":"${c}","id":"${nextNew}"}'>Draft "${nextNew}"</button>
+      <button data-a='{"type":"createPlane","conn":"${c}","id":"${nextNew}"}'>Create "${nextNew}"</button>
+      <button data-a='{"type":"jobList","conn":"${c}"}'>List jobs</button>
+      <button data-a='{"type":"jobCancel","conn":"${c}","job":"${lastJob}"}'>Cancel ${lastJob}</button>
+      <button data-a='{"type":"jobDismiss","conn":"${c}","job":"${lastJob}"}'>Dismiss ${lastJob}</button>
+    </div>
+    <div class="controls">
+      <span class="label">paths of plane ${psel('fp-plane-' + c)}</span>
+      <button data-p="${c}" data-t="ls">List root</button>
+      <button data-p="${c}" data-t="watch">Watch root</button>
+      <button data-p="${c}" data-t="unwatch">Stop fs</button>
+      <button data-p="${c}" data-t="git">Git status (members)</button>
+      <button data-p="${c}" data-t="gitwatch">Watch git (members)</button>
+      <button data-p="${c}" data-t="gitunwatch">Stop git</button>
+      <button data-p="${c}" data-t="code">Open in VS Code</button>
+    </div>`;
+  document.getElementById('freeplay').innerHTML = clientRow('A') + clientRow('B') + `
+    <div class="controls" style="margin-top:12px"><span class="label"><b>Inside the host</b></span></div>
+    <div class="controls">
+      <span class="label">on session ${sel('fp-sess-D')}</span>
+      <button data-h="print8">Program prints 8 KiB</button>
+      <button data-h="print512">Build prints 512 KiB</button>
+      <button data-h="exit">Shell exits</button>
+      <button data-h="agent-start">Claude starts</button>
+      <button data-h="agent-prompt">Claude busy</button>
+      <button data-h="agent-permission">Claude asks permission</button>
+      <button data-h="agent-stop">Claude idle</button>
+      <button data-h="agent-exit">Claude exits</button>
+    </div>
+    <div class="controls">
+      <span class="label">files &amp; planes</span>
+      <button data-a='{"type":"hostFileEdit","repoPath":"~/planes/web/app","file":"src/app.tsx"}'>Save web/app/src/app.tsx</button>
+      <button data-a='{"type":"hostFileNew","dir":"~/planes/web","name":"notes.md"}'>New file web/notes.md</button>
+      <button data-a='{"type":"hostPlaneAppears","id":"ops"}'>bp create "ops" in a terminal</button>
+      <button data-a='{"type":"hostPlaneGone","id":"api"}'>Delete the "api" folder</button>
+    </div>
+    <div class="controls">
+      <span class="label">tools on the host</span>
+      <button data-a='{"type":"setTool","tool":"bp","on":${!t.bp}}'>${t.bp ? 'Uninstall' : 'Install'} bp</button>
+      <button data-a='{"type":"setTool","tool":"git","on":${!t.git}}'>${t.git ? 'Uninstall' : 'Install'} git</button>
+      <button data-a='{"type":"setTool","tool":"claude","on":${!t.claude}}'>${t.claude ? 'Uninstall' : 'Install'} claude</button>
+    </div>
+    <div class="controls">
+      <span class="label">job ${lastJob}</span>
+      <button data-a='{"type":"jobAdvance","job":"${lastJob}"}'>bp moves on</button>
+      <button data-a='{"type":"jobAdvance","job":"${lastJob}","fail":true}'>Script fails</button>
+    </div>
+    <div class="controls">
+      <button data-a='{"type":"daemonRestart"}'>Daemon crashes and restarts</button>
+      <button id="reset" class="primary">Reset everything</button>
+    </div>`;
+  for (const [id, v] of Object.entries(prev)) {
+    const el = document.getElementById(id);
+    if (v && el && [...el.options].some(o => o.value === v)) el.value = v;
+  }
+}
+
+function renderScenario() {
+  document.getElementById('tabs').innerHTML = SCENARIOS.map((sc, i) => `<button class="${i === activeTab ? 'active' : ''}" data-tab="${i}">${sc.name}</button>`).join('');
+  const sc = SCENARIOS[activeTab];
+  const steps = sc.steps.map(([label], i) => {
+    const cls = i < scenarioPos ? 'done' : i === scenarioPos ? 'next' : '';
+    return `<button class="${cls}" data-step="${i}" ${i === scenarioPos ? '' : 'disabled'}>${i + 1}. ${label}</button>`;
+  }).join('');
+  document.getElementById('scenario').innerHTML = `
+    <p>${sc.text}</p>
+    <div class="watch"><b>Watch for:</b> ${sc.watch}</div>
+    <div class="steps">
+      <button class="primary" data-start="1">${scenarioPos < 0 ? 'Start this walkthrough' : 'Restart this walkthrough'} (resets state)</button>
+      ${scenarioPos >= 0 ? steps : ''}
+      ${scenarioPos >= sc.steps.length ? '<p class="empty">Done. Keep poking with free play.</p>' : ''}
+    </div>`;
+}
+
+function renderSpec() {
+  const S = Protocol.SPEC;
+  const rows = (list, cols) => list.map(r => `<tr>${r.map((c, i) => `<td class="${i < cols ? 'mono' : ''}">${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
+  document.getElementById('spec').innerHTML = `
+    <h3>Requests (client → daemon)</h3>
+    <table class="spec"><tr><th>method</th><th>params</th><th>result</th><th>notes</th></tr>${rows(S.requests, 3)}</table>
+    <h3>Notifications</h3>
+    <table class="spec"><tr><th>method</th><th>params</th><th>notes</th></tr>${rows(S.clientNotifications.map(r => [r[0] + '  (client →)', r[1], r[2]]), 2)}${rows(S.serverNotifications.map(r => [r[0] + '  (← daemon)', r[1], r[2]]), 2)}</table>
+    <h3>Frames</h3>
+    <p class="mono">${escapeHtml(S.envelope)}</p>
+    <table class="spec"><tr><th>kind</th><th>body</th><th>notes</th></tr>${rows(S.frames, 2)}</table>
+    <h3>Shapes and errors</h3>
+    ${S.shapes.map(x => `<p class="mono">${escapeHtml(x)}</p>`).join('')}
+    <p class="mono">${Object.entries(S.errors).map(([k, v]) => `${v} ${k}`).join(' · ')}</p>
+    <h3>Open questions the prototype raises</h3>
+    <ol class="questions">
+      <li><b>New in v3.</b> Gone plane: cc stitches <code>plane.changed</code>, <code>session.changed.rootGone</code>, <code>fs.changed{gone}</code> and <code>git.changed{gone}</code>. OK?</li>
+      <li><b>New in v3.</b> Availability probed only at start: is a re-probe call (or a restart hint in the reason) needed?</li>
+      <li><b>New in v3.</b> Agent state is no longer on <code>Session</code>; cc joins <code>agent.claude.changed</code> by session id. Does <code>Session</code> keep any agent hint (e.g. foreground = claude) or nothing?</li>
+      <li><b>New in v3.</b> git per repo path: one <code>git.changed</code> per repo, client supplies member paths from <code>plane.list</code>.</li>
+      <li>Startup: hello + five list calls, or a root-level snapshot?</li>
+      <li>Scoped watches: one scope per module per connection vs. subscription ids.</li>
+      <li><code>job.log</code> to everyone, or only to followers? Who may cancel/dismiss a job?</li>
+      <li><code>plane.changed</code> with the whole model vs. per-plane deltas.</li>
+      <li>Frames addressed by attachment id vs. session id; input as a binary frame vs. JSON-RPC.</li>
+      <li>Does <code>session.attachment.open</code> count as activity for "latest active wins"?</li>
+      <li>Slow client: drop + resnapshot loses the scrollback in between.</li>
+      <li>Gateway: one WebSocket per host vs. one multiplexed socket.</li>
+      <li>Exited shells stay listed until closed/restarted — or are they removed automatically?</li>
+      <li>Daemon restart keeps session ids but resets the PTY; do sessions need a generation?</li>
+      <li>Enum evolution: <code>#[serde(other)] Unknown</code> or capability-gated variants.</li>
+      <li>Plane creation phases need structured progress from <code>bp create</code>.</li>
+      <li>Does the quit prompt survive? Does cc still need a user-set tab name?</li>
+    </ol>`;
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('button');
+  if (!t || t.disabled) return;
+  if (t.dataset.a) return dispatch(JSON.parse(t.dataset.a));
+  if (t.id === 'reset') { world = prevWorld = Protocol.initial(); scenarioPos = -1; return render(); }
+  if (t.dataset.s) {
+    const c = t.dataset.s, session = document.getElementById('fp-sess-' + c).value;
+    if (!world.sessions[session]) return;
+    const conn = world.conns[c];
+    const m = {
+      attach: { type: 'attach', conn: c, session },
+      'attach-ro': { type: 'attach', conn: c, session, readOnly: true, ignoreSize: true },
+      type: { type: 'type', conn: c, session, text: 'ls\r' },
+      resize: { type: 'resize', conn: c, session, cols: conn.cols === 120 || conn.cols === 60 ? conn.cols + 20 : conn.cols - 20, rows: conn.rows },
+      detach: { type: 'detach', conn: c, session },
+      restart: { type: 'restart', conn: c, session },
+      close: { type: 'close', conn: c, session },
+      busy: { type: 'busy', conn: c, session },
+    };
+    return dispatch(m[t.dataset.t]);
+  }
+  if (t.dataset.p) {
+    const c = t.dataset.p, plane = document.getElementById('fp-plane-' + c).value;
+    if (!plane) return;
+    const root = Protocol.planeRoot(plane);
+    const members = world.host.planes[plane].members.map(m => `${root}/${m}`);
+    const m = {
+      ls: { type: 'fsList', conn: c, path: root },
+      watch: { type: 'fsWatch', conn: c, paths: [root] },
+      unwatch: { type: 'fsWatch', conn: c, paths: [] },
+      git: { type: 'gitStatus', conn: c, paths: members },
+      gitwatch: { type: 'gitWatch', conn: c, paths: members },
+      gitunwatch: { type: 'gitWatch', conn: c, paths: [] },
+      code: { type: 'openInEditor', conn: c, plane },
+    };
+    return dispatch(m[t.dataset.t]);
+  }
+  if (t.dataset.h) {
+    const session = document.getElementById('fp-sess-D').value;
+    if (!world.sessions[session]) return;
+    const h = t.dataset.h;
+    if (h === 'print8') return dispatch({ type: 'programPrints', session, kib: 8 });
+    if (h === 'print512') return dispatch({ type: 'programPrints', session, kib: 512 });
+    if (h === 'exit') return dispatch({ type: 'shellExits', session, code: 0 });
+    return dispatch({ type: 'agent', session, event: h.slice(6) });
+  }
+  if (t.dataset.tab) { activeTab = +t.dataset.tab; scenarioPos = -1; return renderScenario(); }
+  if (t.dataset.start) { world = prevWorld = Protocol.initial(); scenarioPos = 0; return render(); }
+  if (t.dataset.step) {
+    const sc = SCENARIOS[activeTab];
+    dispatch(sc.steps[scenarioPos][1]);
+    scenarioPos += 1;
+    return renderScenario();
+  }
+});
+
+function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }
+
+renderSpec();
+render();
+</script>
+</body>
+</html>
