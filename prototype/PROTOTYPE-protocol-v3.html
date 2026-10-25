@@ -43,14 +43,14 @@
   .bar > span { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
   .bar.stale > span { background: var(--warn); }
   .log { font-family: var(--mono); font-size: 12px; max-height: 620px; overflow: auto; }
-  .log .row { display: grid; grid-template-columns: 30px 90px 1fr; gap: 6px; padding: 3px 4px; border-bottom: 1px solid var(--line); }
+  .log .row { display: grid; grid-template-columns: 30px 90px minmax(0, 1fr); gap: 6px; padding: 3px 4px; border-bottom: 1px solid var(--line); }
   .log .row.latest { background: var(--accent-soft); }
   .log .who { color: var(--muted); }
   .log .k-note { color: var(--muted); font-style: italic; font-family: system-ui, sans-serif; }
   .log .k-err { color: var(--bad); }
   .log .k-frame { color: var(--warn); }
   .log .k-transport { color: var(--ok); }
-  .log pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+  .log pre { margin: 0; white-space: pre; overflow-x: auto; min-width: 0; }
   .controls { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
   .controls .label { font-size: 12px; color: var(--muted); min-width: 110px; }
   button { font: inherit; font-size: 13px; padding: 5px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; cursor: pointer; }
@@ -762,10 +762,10 @@ const Protocol = (() => {
   function probe(tools) {
     return [
       { module: 'session', available: true },
-      tools.claude ? { module: 'agent.claude', available: true } : { module: 'agent.claude', available: false, reason: 'claude not found on PATH' },
-      tools.bp ? { module: 'plane', available: true, info: { bp: tools.bp } } : { module: 'plane', available: false, reason: 'bp not found on PATH' },
+      tools.claude ? { module: 'agent.claude', available: true } : { module: 'agent.claude', available: false, reason: 'claude not found on PATH; install it and restart the daemon' },
+      tools.bp ? { module: 'plane', available: true, info: { bp: tools.bp } } : { module: 'plane', available: false, reason: 'bp not found on PATH; install it and restart the daemon' },
       { module: 'fs', available: true },
-      tools.git ? { module: 'git', available: true } : { module: 'git', available: false, reason: 'git not found on PATH' },
+      tools.git ? { module: 'git', available: true } : { module: 'git', available: false, reason: 'git not found on PATH; install it and restart the daemon' },
     ];
   }
 
@@ -1218,7 +1218,7 @@ function renderLog() {
     if (e.kind === 'note' && typeof e.body === 'string') { who = e.conn === 'daemon' ? 'daemon' : e.conn; body = e.body; }
     else if (e.kind === 'transport') { who = e.conn; body = '⇄ ' + e.body; }
     else if (e.kind === 'frame') { who = `${e.conn} ${arrow}`; const { frame, ...rest } = e.body; body = `⟦${frame}⟧ ` + Object.entries(rest).map(([k, v]) => `${k}=${v}`).join(' '); }
-    else { who = `${e.conn} ${arrow}`; body = JSON.stringify(e.body); cls = e.kind === 'err' ? 'k-err' : ''; }
+    else { who = `${e.conn} ${arrow}`; body = formatJson(e.body); cls = e.kind === 'err' ? 'k-err' : ''; }
     if (e.via === 'gateway' && (e.dir === 'up' || e.dir === 'down')) who += ' ⋯gw';
     return `<div class="row ${latest}"><span class="who">${e.step}</span><span class="who">${who}</span><pre class="${cls}">${escapeHtml(body)}</pre></div>`;
   });
@@ -1357,7 +1357,7 @@ function renderSpec() {
     <h3>Shapes and errors</h3>
     ${S.shapes.map(x => `<p class="mono">${escapeHtml(x)}</p>`).join('')}
     <p class="mono">${Object.entries(S.errors).map(([k, v]) => `${v} ${k}`).join(' · ')}</p>
-    <h3>Open questions the prototype raises</h3>
+    <h3>Open questions the prototype raised</h3><p><b>Resolved</b> on bp-bitplane/bitplane-protocol#3 (2026-10-25): see the resolution comment there for the decisions and where each remaining question went.</p>
     <ol class="questions">
       <li><b>New in v3.</b> Gone plane: cc stitches <code>plane.changed</code>, <code>session.changed.rootGone</code>, <code>fs.changed{gone}</code> and <code>git.changed{gone}</code>. OK?</li>
       <li><b>New in v3.</b> Availability probed only at start: is a re-probe call (or a restart hint in the reason) needed?</li>
@@ -1434,6 +1434,20 @@ document.addEventListener('click', e => {
     return renderScenario();
   }
 });
+
+function formatJson(v, depth = 2, indent = '') {
+  if (!v || typeof v !== 'object' || depth === 0) return JSON.stringify(v);
+  const inner = indent + '  ';
+  const entries = Array.isArray(v)
+    ? v.map(x => formatJson(x, depth - 1, inner))
+    : Object.entries(v).map(([k, x]) => `${JSON.stringify(k)}: ${formatJson(x, depth - 1, inner)}`);
+  if (!entries.length) return Array.isArray(v) ? '[]' : '{}';
+  const [open, close] = Array.isArray(v) ? ['[', ']'] : ['{', '}'];
+  return `${open}
+${inner}${entries.join(`,
+${inner}`)}
+${indent}${close}`;
+}
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }
 
