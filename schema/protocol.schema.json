@@ -1,0 +1,279 @@
+{
+  "$defs": {
+    "Capability": {
+      "description": "One module of the daemon and whether this host can serve it; `reason`\nnames the fix when it cannot.",
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "info": true,
+        "module": {
+          "type": "string"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "module",
+        "available"
+      ],
+      "type": "object"
+    },
+    "ClientInfo": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "via": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "DaemonInfo": {
+      "description": "`instance` is random per daemon process, so a reconnecting client can\ntell a dropped connection from a restarted daemon.",
+      "properties": {
+        "instance": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "instance"
+      ],
+      "type": "object"
+    },
+    "ErrorCode": {
+      "oneOf": [
+        {
+          "enum": [
+            "MODULE_UNAVAILABLE"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "HELLO_REQUIRED",
+          "description": "The first request on a connection was not `hello`.",
+          "type": "string"
+        },
+        {
+          "const": "HELLO_REPEATED",
+          "description": "`hello` was already answered on this connection.",
+          "type": "string"
+        },
+        {
+          "const": "VERSION_MISMATCH",
+          "description": "No protocol version both ends speak; `detail` carries the daemon's range.",
+          "type": "string"
+        },
+        {
+          "const": "UNKNOWN",
+          "description": "Any code this build does not know, from a newer peer.",
+          "type": "string"
+        }
+      ]
+    },
+    "ErrorData": {
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "detail": true
+      },
+      "required": [
+        "code"
+      ],
+      "type": "object"
+    },
+    "HelloParams": {
+      "description": "`protocolVersion` is the newest version the client speaks,\n`minProtocolVersion` the oldest.",
+      "properties": {
+        "client": {
+          "$ref": "#/$defs/ClientInfo"
+        },
+        "minProtocolVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "protocolVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "minProtocolVersion",
+        "client"
+      ],
+      "type": "object"
+    },
+    "HelloResult": {
+      "description": "`protocolVersion` is the version both ends speak from here on.",
+      "properties": {
+        "capabilities": {
+          "items": {
+            "$ref": "#/$defs/Capability"
+          },
+          "type": "array"
+        },
+        "daemon": {
+          "$ref": "#/$defs/DaemonInfo"
+        },
+        "protocolVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "daemon",
+        "capabilities"
+      ],
+      "type": "object"
+    },
+    "Id": {
+      "anyOf": [
+        {
+          "format": "int64",
+          "type": "integer"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "Notification": {
+      "properties": {
+        "jsonrpc": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "params": true
+      },
+      "required": [
+        "jsonrpc",
+        "method"
+      ],
+      "type": "object"
+    },
+    "Request": {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "jsonrpc": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "params": true
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "method"
+      ],
+      "type": "object"
+    },
+    "Response": {
+      "description": "`id` is `null` only when the request it answers could not be read.",
+      "oneOf": [
+        {
+          "properties": {
+            "result": true
+          },
+          "required": [
+            "result"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "error": {
+              "$ref": "#/$defs/RpcError"
+            }
+          },
+          "required": [
+            "error"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "jsonrpc": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "jsonrpc"
+      ],
+      "type": "object"
+    },
+    "RpcError": {
+      "description": "A JSON-RPC error. Protocol errors use [`RpcError::SERVER_ERROR`] and name\nthemselves in `data.code`; the numeric codes stay JSON-RPC's own.",
+      "properties": {
+        "code": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ErrorData"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "bitplane protocol"
+}

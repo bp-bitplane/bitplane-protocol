@@ -1,0 +1,23 @@
+[package]
+name = "bitplane-protocol"
+description = "Protocol v1 of the bitplane stack: wire types and frame codecs, no logic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+specta = ["dep:specta", "dep:specta-typescript", "dep:specta-serde"]
+schemars = ["dep:schemars"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+specta = { version = "=2.0.0-rc.25", features = ["derive", "serde_json"], optional = true }
+specta-typescript = { version = "=0.0.12", optional = true }
+specta-serde = { version = "=0.0.12", optional = true }
+schemars = { version = "1", optional = true }
+
+[dev-dependencies]
+bitplane-protocol = { path = ".", features = ["specta", "schemars"] }

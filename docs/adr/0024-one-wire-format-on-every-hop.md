@@ -29,7 +29,7 @@ On a stream transport (Unix socket, stdio, SSH subsystem) each frame is wrapped 
 
 ## Consequences
 
-- The byte order of the integers inside a frame body is not fixed yet; the test vectors fix it. The frame layout and envelope are specified with those vectors, and both hand-written codecs (Rust and TS) are tested against them (ADR 0021).
+- Every integer in a frame is big-endian, like the envelope's length. `docs/frames.md` specifies the layout and `test-vectors/frames.json` makes it executable; both hand-written codecs (Rust and TS) run those vectors (ADR 0021).
 - Flow control is per attachment and acknowledged in JSON-RPC (`session.attachment.ack`), so a slow client never stalls the PTY or another attachment.
 - An older daemon refuses a newer client's minimum version in `hello`; the client then asks before restarting it with its own version.
 - Decisions: [Protocol v1: the method set](https://github.com/bp-bitplane/bitplane-protocol/issues/3) (prototype v3 on `alfonz/prototype-protocol-v1`).
