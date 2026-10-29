@@ -1,0 +1,112 @@
+{
+  "valid": [
+    {
+      "name": "json request",
+      "frame": {
+        "kind": "json",
+        "data": "7b226a736f6e727063223a22322e30222c226964223a312c226d6574686f64223a2268656c6c6f227d"
+      },
+      "websocket": "007b226a736f6e727063223a22322e30222c226964223a312c226d6574686f64223a2268656c6c6f227d",
+      "envelope": "0000002a007b226a736f6e727063223a22322e30222c226964223a312c226d6574686f64223a2268656c6c6f227d"
+    },
+    {
+      "name": "json, empty body",
+      "frame": {
+        "kind": "json",
+        "data": ""
+      },
+      "websocket": "00",
+      "envelope": "0000000100"
+    },
+    {
+      "name": "snapshot",
+      "frame": {
+        "kind": "snapshot",
+        "attachment": 1,
+        "offset": 0,
+        "data": "1b5b324a1b5b486869"
+      },
+      "websocket": "010000000100000000000000001b5b324a1b5b486869",
+      "envelope": "00000016010000000100000000000000001b5b324a1b5b486869"
+    },
+    {
+      "name": "output, large ids and offset",
+      "frame": {
+        "kind": "output",
+        "attachment": 4294967295,
+        "offset": 9007199254740991,
+        "data": "6f6b0d0a"
+      },
+      "websocket": "02ffffffff001fffffffffffff6f6b0d0a",
+      "envelope": "0000001102ffffffff001fffffffffffff6f6b0d0a"
+    },
+    {
+      "name": "output, empty data",
+      "frame": {
+        "kind": "output",
+        "attachment": 7,
+        "offset": 258,
+        "data": ""
+      },
+      "websocket": "02000000070000000000000102",
+      "envelope": "0000000d02000000070000000000000102"
+    },
+    {
+      "name": "input",
+      "frame": {
+        "kind": "input",
+        "attachment": 2,
+        "data": "6c730d"
+      },
+      "websocket": "03000000026c730d",
+      "envelope": "0000000803000000026c730d"
+    },
+    {
+      "name": "input, non-utf8 bytes",
+      "frame": {
+        "kind": "input",
+        "attachment": 256,
+        "data": "ff00fe"
+      },
+      "websocket": "0300000100ff00fe",
+      "envelope": "000000080300000100ff00fe"
+    }
+  ],
+  "invalid": [
+    {
+      "name": "zero length",
+      "envelope": "00000000",
+      "error": "empty"
+    },
+    {
+      "name": "unknown kind",
+      "envelope": "0000000404616263",
+      "error": "unknown_kind"
+    },
+    {
+      "name": "output body shorter than its header",
+      "envelope": "0000000c020000000000000000000000",
+      "error": "short_body"
+    },
+    {
+      "name": "input body shorter than its header",
+      "envelope": "00000003030001",
+      "error": "short_body"
+    },
+    {
+      "name": "length over the limit",
+      "envelope": "01000001",
+      "error": "too_large"
+    }
+  ],
+  "incomplete": [
+    {
+      "name": "partial length",
+      "envelope": "0000"
+    },
+    {
+      "name": "body not yet arrived",
+      "envelope": "000000050300"
+    }
+  ]
+}
