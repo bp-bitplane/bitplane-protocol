@@ -1,5 +1,131 @@
 {
   "$defs": {
+    "AttachmentAckParams": {
+      "description": "The client notification `session.attachment.ack`: `bytes` is the\ncumulative count of SNAPSHOT and OUTPUT data the client has drawn on this\nattachment. The daemon keeps at most 128 KiB unacknowledged.",
+      "properties": {
+        "attachment": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attachment",
+        "bytes"
+      ],
+      "type": "object"
+    },
+    "AttachmentError": {
+      "description": "The event `session.attachment.error`: INPUT frames have no reply, so\ntheir errors come back here.",
+      "properties": {
+        "attachment": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "attachment",
+        "code",
+        "message"
+      ],
+      "type": "object"
+    },
+    "AttachmentOpenParams": {
+      "description": "`session.attachment.open`: the reply comes first, then exactly one\nSNAPSHOT frame, then OUTPUT frames from the snapshot's offset.",
+      "properties": {
+        "cols": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rows": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "session": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session",
+        "cols",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "AttachmentOpenResult": {
+      "properties": {
+        "attachment": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "session": {
+          "$ref": "#/$defs/Session"
+        }
+      },
+      "required": [
+        "attachment",
+        "session"
+      ],
+      "type": "object"
+    },
+    "AttachmentRef": {
+      "description": "Names one attachment: the params of `session.attachment.close`.",
+      "properties": {
+        "attachment": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attachment"
+      ],
+      "type": "object"
+    },
+    "AttachmentResizeParams": {
+      "properties": {
+        "attachment": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cols": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rows": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attachment",
+        "cols",
+        "rows"
+      ],
+      "type": "object"
+    },
     "Capability": {
       "description": "One module of the daemon and whether this host can serve it; `reason`\nnames the fix when it cannot.",
       "properties": {
@@ -68,7 +194,8 @@
       "oneOf": [
         {
           "enum": [
-            "MODULE_UNAVAILABLE"
+            "MODULE_UNAVAILABLE",
+            "UNKNOWN_SESSION"
           ],
           "type": "string"
         },
@@ -85,6 +212,31 @@
         {
           "const": "VERSION_MISMATCH",
           "description": "No protocol version both ends speak; `detail` carries the daemon's range.",
+          "type": "string"
+        },
+        {
+          "const": "UNKNOWN_ATTACHMENT",
+          "description": "No such attachment on this connection.",
+          "type": "string"
+        },
+        {
+          "const": "READ_ONLY",
+          "description": "Input on an attachment opened `readOnly`.",
+          "type": "string"
+        },
+        {
+          "const": "SESSION_EXITED",
+          "description": "Input to a session whose shell has exited.",
+          "type": "string"
+        },
+        {
+          "const": "ROOT_GONE",
+          "description": "The session root no longer exists.",
+          "type": "string"
+        },
+        {
+          "const": "NOT_FOUND",
+          "description": "A path the request names does not exist.",
           "type": "string"
         },
         {
@@ -270,6 +422,200 @@
       "required": [
         "code",
         "message"
+      ],
+      "type": "object"
+    },
+    "Session": {
+      "properties": {
+        "attachments": {
+          "description": "How many attachments the session has, across all clients.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "type": "string"
+        },
+        "plane": {
+          "description": "Opaque to the daemon: stored, exported as `BITPLANE_PLANE_ID`, returned.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "root": {
+          "description": "The session root: the directory the shell starts in.",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Creation order on this host.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "size": {
+          "$ref": "#/$defs/Size"
+        },
+        "status": {
+          "$ref": "#/$defs/SessionStatus"
+        }
+      },
+      "required": [
+        "id",
+        "seq",
+        "root",
+        "status",
+        "size",
+        "attachments"
+      ],
+      "type": "object"
+    },
+    "SessionListResult": {
+      "properties": {
+        "sessions": {
+          "items": {
+            "$ref": "#/$defs/Session"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "sessions"
+      ],
+      "type": "object"
+    },
+    "SessionOpenParams": {
+      "description": "`session.open`: `root` must be an existing directory. `env` is set on top\nof the daemon's login-shell environment.",
+      "properties": {
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "plane": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "root": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "root"
+      ],
+      "type": "object"
+    },
+    "SessionRef": {
+      "description": "Names one session: the params of `session.close` and the\n`session.removed` event.",
+      "properties": {
+        "session": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session"
+      ],
+      "type": "object"
+    },
+    "SessionResult": {
+      "description": "The result of `session.open`, and the `session.changed` event.",
+      "properties": {
+        "session": {
+          "$ref": "#/$defs/Session"
+        }
+      },
+      "required": [
+        "session"
+      ],
+      "type": "object"
+    },
+    "SessionStatus": {
+      "oneOf": [
+        {
+          "properties": {
+            "state": {
+              "const": "running",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "code": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "state": {
+              "const": "exited",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "code"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The shell could not be started.",
+          "properties": {
+            "error": {
+              "type": "string"
+            },
+            "state": {
+              "const": "spawnFailed",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "error"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Any state this build does not know, from a newer peer.",
+          "properties": {
+            "state": {
+              "const": "unknown",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Size": {
+      "properties": {
+        "cols": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rows": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cols",
+        "rows"
       ],
       "type": "object"
     }

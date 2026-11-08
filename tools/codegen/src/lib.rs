@@ -3,7 +3,13 @@
 
 use bitplane_protocol::{
     Capability, ClientInfo, DaemonInfo, ErrorCode, ErrorData, HelloParams, HelloResult, Id,
-    Notification, Request, Response, RpcError, rpc::Outcome,
+    Notification, Request, Response, RpcError,
+    rpc::Outcome,
+    session::{
+        AttachmentAckParams, AttachmentError, AttachmentOpenParams, AttachmentOpenResult,
+        AttachmentRef, AttachmentResizeParams, Session, SessionListResult, SessionOpenParams,
+        SessionRef, SessionResult, SessionStatus, Size,
+    },
 };
 
 pub const TYPESCRIPT_PATH: &str = "ts/src/generated.ts";
@@ -23,7 +29,20 @@ pub fn typescript() -> String {
         .register::<ClientInfo>()
         .register::<HelloResult>()
         .register::<DaemonInfo>()
-        .register::<Capability>();
+        .register::<Capability>()
+        .register::<Session>()
+        .register::<SessionStatus>()
+        .register::<Size>()
+        .register::<SessionOpenParams>()
+        .register::<SessionResult>()
+        .register::<SessionListResult>()
+        .register::<SessionRef>()
+        .register::<AttachmentOpenParams>()
+        .register::<AttachmentOpenResult>()
+        .register::<AttachmentResizeParams>()
+        .register::<AttachmentRef>()
+        .register::<AttachmentAckParams>()
+        .register::<AttachmentError>();
     specta_typescript::Typescript::default()
         .header("// Generated from the bitplane-protocol crate. Do not edit.")
         .export(&types, specta_serde::PhasesFormat)
@@ -37,6 +56,16 @@ pub fn json_schema() -> String {
     generator.subschema_for::<Response>();
     generator.subschema_for::<HelloParams>();
     generator.subschema_for::<HelloResult>();
+    generator.subschema_for::<SessionOpenParams>();
+    generator.subschema_for::<SessionResult>();
+    generator.subschema_for::<SessionListResult>();
+    generator.subschema_for::<SessionRef>();
+    generator.subschema_for::<AttachmentOpenParams>();
+    generator.subschema_for::<AttachmentOpenResult>();
+    generator.subschema_for::<AttachmentResizeParams>();
+    generator.subschema_for::<AttachmentRef>();
+    generator.subschema_for::<AttachmentAckParams>();
+    generator.subschema_for::<AttachmentError>();
     let schema = serde_json::json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "bitplane protocol",

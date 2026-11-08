@@ -35,6 +35,17 @@ pub enum ErrorCode {
     /// No protocol version both ends speak; `detail` carries the daemon's range.
     VersionMismatch,
     ModuleUnavailable,
+    UnknownSession,
+    /// No such attachment on this connection.
+    UnknownAttachment,
+    /// Input on an attachment opened `readOnly`.
+    ReadOnly,
+    /// Input to a session whose shell has exited.
+    SessionExited,
+    /// The session root no longer exists.
+    RootGone,
+    /// A path the request names does not exist.
+    NotFound,
     /// Any code this build does not know, from a newer peer.
     Unknown,
 }
@@ -45,7 +56,13 @@ crate::open_enum::deserialize_as_unknown!(
         HelloRequired,
         HelloRepeated,
         VersionMismatch,
-        ModuleUnavailable
+        ModuleUnavailable,
+        UnknownSession,
+        UnknownAttachment,
+        ReadOnly,
+        SessionExited,
+        RootGone,
+        NotFound,
     ]
 );
 
