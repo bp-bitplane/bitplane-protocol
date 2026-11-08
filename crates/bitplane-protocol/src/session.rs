@@ -25,7 +25,21 @@ pub struct Session {
     /// Opaque to the daemon: stored, exported as `BITPLANE_PLANE_ID`, returned.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plane: Option<String>,
+    /// The user's name for the session, set by `session.rename`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// The title the program set (OSC 0/2), kept apart from `name`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// The name of the terminal's foreground process: the shell when idle,
+    /// absent while no shell runs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub foreground: Option<String>,
     pub status: SessionStatus,
+    /// The root no longer exists; a running shell keeps running, and
+    /// `session.restart` gets `ROOT_GONE` until it is back.
+    #[serde(default)]
+    pub root_gone: bool,
     pub size: Size,
     /// How many attachments the session has, across all clients.
     pub attachments: u32,
@@ -67,6 +81,8 @@ pub struct SessionOpenParams {
     pub env: Option<BTreeMap<String, String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plane: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 /// The result of `session.open`, and the `session.changed` event.
@@ -84,13 +100,35 @@ pub struct SessionListResult {
     pub sessions: Vec<Session>,
 }
 
-/// Names one session: the params of `session.close` and the
-/// `session.removed` event.
+/// Names one session: the params of `session.close`, `session.restart` and
+/// `session.busy`, and the `session.removed` event.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct SessionRef {
     pub session: SessionId,
+}
+
+/// `session.rename`: no `name` clears it. Replies with [`SessionResult`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct SessionRenameParams {
+    pub session: SessionId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+/// The result of `session.busy`: busy when the terminal's foreground process
+/// is not the shell, and then that process's name.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct SessionBusyResult {
+    pub busy: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub process_name: Option<String>,
 }
 
 /// `session.attachment.open`: the reply comes first, then exactly one

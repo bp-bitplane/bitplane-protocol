@@ -285,6 +285,30 @@ export type RpcError_Serialize = {
 
 export type Session = Session_Serialize | Session_Deserialize;
 
+/**
+ *  The result of `session.busy`: busy when the terminal's foreground process
+ *  is not the shell, and then that process's name.
+ */
+export type SessionBusyResult = SessionBusyResult_Serialize | SessionBusyResult_Deserialize;
+
+/**
+ *  The result of `session.busy`: busy when the terminal's foreground process
+ *  is not the shell, and then that process's name.
+ */
+export type SessionBusyResult_Deserialize = {
+	busy: boolean,
+	processName?: string | null,
+};
+
+/**
+ *  The result of `session.busy`: busy when the terminal's foreground process
+ *  is not the shell, and then that process's name.
+ */
+export type SessionBusyResult_Serialize = {
+	busy: boolean,
+	processName?: string | null,
+};
+
 export type SessionListResult = SessionListResult_Serialize | SessionListResult_Deserialize;
 
 export type SessionListResult_Deserialize = {
@@ -309,6 +333,7 @@ export type SessionOpenParams_Deserialize = {
 	root: string,
 	env?: { [key in string]: string } | null,
 	plane?: string | null,
+	name?: string | null,
 };
 
 /**
@@ -319,14 +344,30 @@ export type SessionOpenParams_Serialize = {
 	root: string,
 	env?: { [key in string]: string } | null,
 	plane?: string | null,
+	name?: string | null,
 };
 
 /**
- *  Names one session: the params of `session.close` and the
- *  `session.removed` event.
+ *  Names one session: the params of `session.close`, `session.restart` and
+ *  `session.busy`, and the `session.removed` event.
  */
 export type SessionRef = {
 	session: string,
+};
+
+/**  `session.rename`: no `name` clears it. Replies with [`SessionResult`]. */
+export type SessionRenameParams = SessionRenameParams_Serialize | SessionRenameParams_Deserialize;
+
+/**  `session.rename`: no `name` clears it. Replies with [`SessionResult`]. */
+export type SessionRenameParams_Deserialize = {
+	session: string,
+	name?: string | null,
+};
+
+/**  `session.rename`: no `name` clears it. Replies with [`SessionResult`]. */
+export type SessionRenameParams_Serialize = {
+	session: string,
+	name?: string | null,
 };
 
 /**  The result of `session.open`, and the `session.changed` event. */
@@ -356,7 +397,21 @@ export type Session_Deserialize = {
 	root: string,
 	/**  Opaque to the daemon: stored, exported as `BITPLANE_PLANE_ID`, returned. */
 	plane?: string | null,
+	/**  The user's name for the session, set by `session.rename`. */
+	name?: string | null,
+	/**  The title the program set (OSC 0/2), kept apart from `name`. */
+	title?: string | null,
+	/**
+	 *  The name of the terminal's foreground process: the shell when idle,
+	 *  absent while no shell runs.
+	 */
+	foreground?: string | null,
 	status: SessionStatus,
+	/**
+	 *  The root no longer exists; a running shell keeps running, and
+	 *  `session.restart` gets `ROOT_GONE` until it is back.
+	 */
+	rootGone?: boolean,
 	size: Size,
 	/**  How many attachments the session has, across all clients. */
 	attachments: number,
@@ -370,7 +425,21 @@ export type Session_Serialize = {
 	root: string,
 	/**  Opaque to the daemon: stored, exported as `BITPLANE_PLANE_ID`, returned. */
 	plane?: string | null,
+	/**  The user's name for the session, set by `session.rename`. */
+	name?: string | null,
+	/**  The title the program set (OSC 0/2), kept apart from `name`. */
+	title?: string | null,
+	/**
+	 *  The name of the terminal's foreground process: the shell when idle,
+	 *  absent while no shell runs.
+	 */
+	foreground?: string | null,
 	status: SessionStatus,
+	/**
+	 *  The root no longer exists; a running shell keeps running, and
+	 *  `session.restart` gets `ROOT_GONE` until it is back.
+	 */
+	rootGone: boolean,
 	size: Size,
 	/**  How many attachments the session has, across all clients. */
 	attachments: number,

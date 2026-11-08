@@ -7,8 +7,8 @@ use bitplane_protocol::{
     rpc::Outcome,
     session::{
         AttachmentAckParams, AttachmentError, AttachmentOpenParams, AttachmentOpenResult,
-        AttachmentRef, AttachmentResizeParams, Session, SessionListResult, SessionOpenParams,
-        SessionRef, SessionResult, SessionStatus, Size,
+        AttachmentRef, AttachmentResizeParams, Session, SessionBusyResult, SessionListResult,
+        SessionOpenParams, SessionRef, SessionRenameParams, SessionResult, SessionStatus, Size,
     },
 };
 
@@ -37,6 +37,8 @@ pub fn typescript() -> String {
         .register::<SessionResult>()
         .register::<SessionListResult>()
         .register::<SessionRef>()
+        .register::<SessionRenameParams>()
+        .register::<SessionBusyResult>()
         .register::<AttachmentOpenParams>()
         .register::<AttachmentOpenResult>()
         .register::<AttachmentResizeParams>()
@@ -60,6 +62,8 @@ pub fn json_schema() -> String {
     generator.subschema_for::<SessionResult>();
     generator.subschema_for::<SessionListResult>();
     generator.subschema_for::<SessionRef>();
+    generator.subschema_for::<SessionRenameParams>();
+    generator.subschema_for::<SessionBusyResult>();
     generator.subschema_for::<AttachmentOpenParams>();
     generator.subschema_for::<AttachmentOpenResult>();
     generator.subschema_for::<AttachmentResizeParams>();

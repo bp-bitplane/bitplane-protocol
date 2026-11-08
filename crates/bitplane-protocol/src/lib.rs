@@ -22,6 +22,10 @@ pub mod method {
     pub const SESSION_LIST: &str = "session.list";
     pub const SESSION_OPEN: &str = "session.open";
     pub const SESSION_CLOSE: &str = "session.close";
+    /// A new shell under the same id; the stream's offsets keep counting.
+    pub const SESSION_RESTART: &str = "session.restart";
+    pub const SESSION_BUSY: &str = "session.busy";
+    pub const SESSION_RENAME: &str = "session.rename";
     pub const SESSION_ATTACHMENT_OPEN: &str = "session.attachment.open";
     pub const SESSION_ATTACHMENT_RESIZE: &str = "session.attachment.resize";
     pub const SESSION_ATTACHMENT_CLOSE: &str = "session.attachment.close";

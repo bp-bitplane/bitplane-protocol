@@ -441,8 +441,22 @@
           "minimum": 0,
           "type": "integer"
         },
+        "foreground": {
+          "description": "The name of the terminal's foreground process: the shell when idle,\nabsent while no shell runs.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "id": {
           "type": "string"
+        },
+        "name": {
+          "description": "The user's name for the session, set by `session.rename`.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "plane": {
           "description": "Opaque to the daemon: stored, exported as `BITPLANE_PLANE_ID`, returned.",
@@ -455,6 +469,11 @@
           "description": "The session root: the directory the shell starts in.",
           "type": "string"
         },
+        "rootGone": {
+          "default": false,
+          "description": "The root no longer exists; a running shell keeps running, and\n`session.restart` gets `ROOT_GONE` until it is back.",
+          "type": "boolean"
+        },
         "seq": {
           "description": "Creation order on this host.",
           "format": "uint32",
@@ -466,6 +485,13 @@
         },
         "status": {
           "$ref": "#/$defs/SessionStatus"
+        },
+        "title": {
+          "description": "The title the program set (OSC 0/2), kept apart from `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -475,6 +501,24 @@
         "status",
         "size",
         "attachments"
+      ],
+      "type": "object"
+    },
+    "SessionBusyResult": {
+      "description": "The result of `session.busy`: busy when the terminal's foreground process\nis not the shell, and then that process's name.",
+      "properties": {
+        "busy": {
+          "type": "boolean"
+        },
+        "processName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "busy"
       ],
       "type": "object"
     },
@@ -504,6 +548,12 @@
             "null"
           ]
         },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "plane": {
           "type": [
             "string",
@@ -520,8 +570,26 @@
       "type": "object"
     },
     "SessionRef": {
-      "description": "Names one session: the params of `session.close` and the\n`session.removed` event.",
+      "description": "Names one session: the params of `session.close`, `session.restart` and\n`session.busy`, and the `session.removed` event.",
       "properties": {
+        "session": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session"
+      ],
+      "type": "object"
+    },
+    "SessionRenameParams": {
+      "description": "`session.rename`: no `name` clears it. Replies with [`SessionResult`].",
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "session": {
           "type": "string"
         }

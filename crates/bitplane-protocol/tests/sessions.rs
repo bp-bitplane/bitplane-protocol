@@ -1,6 +1,6 @@
 use bitplane_protocol::session::{
-    AttachmentAckParams, AttachmentError, AttachmentOpenParams, Session, SessionOpenParams,
-    SessionStatus,
+    AttachmentAckParams, AttachmentError, AttachmentOpenParams, Session, SessionBusyResult,
+    SessionOpenParams, SessionRenameParams, SessionStatus,
 };
 use bitplane_protocol::{ErrorCode, method};
 use serde_json::json;
@@ -85,4 +85,58 @@ fn an_observer_attaches_read_only_and_ignoring_size() {
         serde_json::to_value(&open).unwrap(),
         json!({"session": "s", "cols": 80, "rows": 24, "readOnly": true, "ignoreSize": true})
     );
+}
+
+#[test]
+fn a_session_carries_its_name_title_foreground_and_root_gone() {
+    let session: Session = serde_json::from_value(json!({
+        "id": "5b0c",
+        "seq": 1,
+        "root": "/planes/web",
+        "name": "api",
+        "title": "vim main.rs",
+        "foreground": "vim",
+        "rootGone": true,
+        "status": {"state": "running"},
+        "size": {"cols": 80, "rows": 24},
+        "attachments": 0,
+    }))
+    .unwrap();
+    assert_eq!(session.name.as_deref(), Some("api"));
+    assert_eq!(session.title.as_deref(), Some("vim main.rs"));
+    assert_eq!(session.foreground.as_deref(), Some("vim"));
+    assert!(session.root_gone);
+
+    let older: Session = serde_json::from_value(json!({
+        "id": "5b0c", "seq": 1, "root": "/r", "status": {"state": "running"},
+        "size": {"cols": 80, "rows": 24}, "attachments": 0,
+    }))
+    .unwrap();
+    assert!(!older.root_gone && older.name.is_none() && older.title.is_none());
+    assert_eq!(serde_json::to_value(&older).unwrap()["rootGone"], false);
+}
+
+#[test]
+fn lifecycle_methods_use_the_spec_names() {
+    let rename: SessionRenameParams = serde_json::from_value(json!({"session": "s"})).unwrap();
+    assert_eq!(rename.name, None);
+    let rename: SessionRenameParams =
+        serde_json::from_value(json!({"session": "s", "name": "api"})).unwrap();
+    assert_eq!(rename.name.as_deref(), Some("api"));
+    let open: SessionOpenParams =
+        serde_json::from_value(json!({"root": "/r", "name": "api"})).unwrap();
+    assert_eq!(open.name.as_deref(), Some("api"));
+    let busy = SessionBusyResult {
+        busy: true,
+        process_name: Some("claude".into()),
+    };
+    assert_eq!(
+        serde_json::to_value(busy).unwrap(),
+        json!({"busy": true, "processName": "claude"})
+    );
+    let idle: SessionBusyResult = serde_json::from_value(json!({"busy": false})).unwrap();
+    assert_eq!(idle.process_name, None);
+    assert_eq!(method::SESSION_RESTART, "session.restart");
+    assert_eq!(method::SESSION_BUSY, "session.busy");
+    assert_eq!(method::SESSION_RENAME, "session.rename");
 }
