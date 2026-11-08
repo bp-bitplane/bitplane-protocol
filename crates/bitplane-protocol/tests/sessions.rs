@@ -45,6 +45,7 @@ fn attachment_messages_use_the_spec_names() {
     let open: AttachmentOpenParams =
         serde_json::from_value(json!({"session": "s", "cols": 80, "rows": 24})).unwrap();
     assert_eq!((open.cols, open.rows), (80, 24));
+    assert!(!open.read_only && !open.ignore_size);
     let ack: AttachmentAckParams =
         serde_json::from_value(json!({"attachment": 7, "bytes": 131072})).unwrap();
     assert_eq!(ack.bytes, 131072);
@@ -71,4 +72,17 @@ fn session_error_codes_round_trip() {
         assert_ne!(decoded, ErrorCode::Unknown, "{code}");
         assert_eq!(serde_json::to_value(decoded).unwrap(), code);
     }
+}
+
+#[test]
+fn an_observer_attaches_read_only_and_ignoring_size() {
+    let open: AttachmentOpenParams = serde_json::from_value(json!({
+        "session": "s", "cols": 80, "rows": 24, "readOnly": true, "ignoreSize": true,
+    }))
+    .unwrap();
+    assert!(open.read_only && open.ignore_size);
+    assert_eq!(
+        serde_json::to_value(&open).unwrap(),
+        json!({"session": "s", "cols": 80, "rows": 24, "readOnly": true, "ignoreSize": true})
+    );
 }

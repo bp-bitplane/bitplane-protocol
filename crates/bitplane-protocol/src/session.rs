@@ -98,10 +98,17 @@ pub struct SessionRef {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub struct AttachmentOpenParams {
     pub session: SessionId,
     pub cols: u16,
     pub rows: u16,
+    /// Its INPUT gets `READ_ONLY` instead of reaching the shell.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub read_only: bool,
+    /// It never sets the session's size, even when it is the latest active.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ignore_size: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

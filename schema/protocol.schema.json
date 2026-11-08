@@ -51,6 +51,14 @@
           "minimum": 0,
           "type": "integer"
         },
+        "ignoreSize": {
+          "description": "It never sets the session's size, even when it is the latest active.",
+          "type": "boolean"
+        },
+        "readOnly": {
+          "description": "Its INPUT gets `READ_ONLY` instead of reaching the shell.",
+          "type": "boolean"
+        },
         "rows": {
           "format": "uint16",
           "maximum": 65535,

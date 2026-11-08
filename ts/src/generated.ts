@@ -24,10 +24,34 @@ export type AttachmentError = {
  *  `session.attachment.open`: the reply comes first, then exactly one
  *  SNAPSHOT frame, then OUTPUT frames from the snapshot's offset.
  */
-export type AttachmentOpenParams = {
+export type AttachmentOpenParams = AttachmentOpenParams_Serialize | AttachmentOpenParams_Deserialize;
+
+/**
+ *  `session.attachment.open`: the reply comes first, then exactly one
+ *  SNAPSHOT frame, then OUTPUT frames from the snapshot's offset.
+ */
+export type AttachmentOpenParams_Deserialize = {
 	session: string,
 	cols: number,
 	rows: number,
+	/**  Its INPUT gets `READ_ONLY` instead of reaching the shell. */
+	readOnly?: boolean,
+	/**  It never sets the session's size, even when it is the latest active. */
+	ignoreSize?: boolean,
+};
+
+/**
+ *  `session.attachment.open`: the reply comes first, then exactly one
+ *  SNAPSHOT frame, then OUTPUT frames from the snapshot's offset.
+ */
+export type AttachmentOpenParams_Serialize = {
+	session: string,
+	cols: number,
+	rows: number,
+	/**  Its INPUT gets `READ_ONLY` instead of reaching the shell. */
+	readOnly?: boolean,
+	/**  It never sets the session's size, even when it is the latest active. */
+	ignoreSize?: boolean,
 };
 
 export type AttachmentOpenResult = AttachmentOpenResult_Serialize | AttachmentOpenResult_Deserialize;
