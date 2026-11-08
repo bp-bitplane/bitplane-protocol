@@ -2,8 +2,8 @@
 //! record of wire changes.
 
 use bitplane_protocol::{
-    Capability, ClientInfo, DaemonInfo, ErrorCode, ErrorData, HelloParams, HelloResult, Id,
-    Notification, Request, Response, RpcError,
+    Capability, ClientInfo, DaemonInfo, DaemonShutdownParams, ErrorCode, ErrorData, HelloParams,
+    HelloResult, Id, Notification, Request, Response, RpcError,
     rpc::Outcome,
     session::{
         AttachmentAckParams, AttachmentError, AttachmentOpenParams, AttachmentOpenResult,
@@ -30,6 +30,7 @@ pub fn typescript() -> String {
         .register::<HelloResult>()
         .register::<DaemonInfo>()
         .register::<Capability>()
+        .register::<DaemonShutdownParams>()
         .register::<Session>()
         .register::<SessionStatus>()
         .register::<Size>()
@@ -58,6 +59,7 @@ pub fn json_schema() -> String {
     generator.subschema_for::<Response>();
     generator.subschema_for::<HelloParams>();
     generator.subschema_for::<HelloResult>();
+    generator.subschema_for::<DaemonShutdownParams>();
     generator.subschema_for::<SessionOpenParams>();
     generator.subschema_for::<SessionResult>();
     generator.subschema_for::<SessionListResult>();

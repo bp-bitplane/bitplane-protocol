@@ -129,6 +129,14 @@ export type DaemonInfo = {
 	instance: string,
 };
 
+/**
+ *  `restore: false` hangs up every session and forgets it; `true` leaves
+ *  them for the next daemon instance to restore (ADR 0027).
+ */
+export type DaemonShutdownParams = {
+	restore: boolean,
+};
+
 export type ErrorCode = 
 /**  The first request on a connection was not `hello`. */
 "HELLO_REQUIRED" | 

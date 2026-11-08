@@ -198,6 +198,18 @@
       ],
       "type": "object"
     },
+    "DaemonShutdownParams": {
+      "description": "`restore: false` hangs up every session and forgets it; `true` leaves\nthem for the next daemon instance to restore (ADR 0027).",
+      "properties": {
+        "restore": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "restore"
+      ],
+      "type": "object"
+    },
     "ErrorCode": {
       "oneOf": [
         {

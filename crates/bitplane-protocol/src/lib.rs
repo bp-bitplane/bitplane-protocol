@@ -11,13 +11,15 @@ pub mod session;
 pub use error::{ErrorCode, ErrorData, RpcError};
 pub use frame::{Frame, FrameError, Kind, decode_envelope};
 pub use hello::{
-    Capability, ClientInfo, DaemonInfo, HelloParams, HelloResult, MIN_PROTOCOL_VERSION,
-    PROTOCOL_VERSION,
+    Capability, ClientInfo, DaemonInfo, DaemonShutdownParams, HelloParams, HelloResult,
+    MIN_PROTOCOL_VERSION, PROTOCOL_VERSION,
 };
 pub use rpc::{Id, Message, Notification, Request, Response};
 
 pub mod method {
     pub const HELLO: &str = "hello";
+    /// Replies once the sessions are saved or hung up, then the daemon exits.
+    pub const DAEMON_SHUTDOWN: &str = "daemon.shutdown";
 
     pub const SESSION_LIST: &str = "session.list";
     pub const SESSION_OPEN: &str = "session.open";
