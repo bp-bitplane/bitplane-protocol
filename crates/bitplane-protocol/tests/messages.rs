@@ -60,3 +60,18 @@ fn negotiation_picks_the_newest_shared_version() {
     assert_eq!(negotiate(&client(3, 4), 1, 2), None);
     assert_eq!(negotiate(&client(1, 1), 2, 2), None);
 }
+
+#[test]
+fn daemon_shutdown_says_whether_sessions_are_restored() {
+    let params: bitplane_protocol::DaemonShutdownParams =
+        serde_json::from_value(json!({"restore": true})).unwrap();
+    assert!(params.restore);
+    assert_eq!(
+        serde_json::to_value(bitplane_protocol::DaemonShutdownParams { restore: false }).unwrap(),
+        json!({"restore": false})
+    );
+    assert_eq!(
+        bitplane_protocol::method::DAEMON_SHUTDOWN,
+        "daemon.shutdown"
+    );
+}

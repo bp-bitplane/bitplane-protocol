@@ -48,6 +48,15 @@ pub struct DaemonInfo {
     pub instance: String,
 }
 
+/// `restore: false` hangs up every session and forgets it; `true` leaves
+/// them for the next daemon instance to restore (ADR 0027).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct DaemonShutdownParams {
+    pub restore: bool,
+}
+
 /// One module of the daemon and whether this host can serve it; `reason`
 /// names the fix when it cannot.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
