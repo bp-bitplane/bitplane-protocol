@@ -21,7 +21,22 @@ pub struct Agent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     pub state: AgentState,
+    /// Why the last turn failed; cleared by the next prompt. Only hooks report it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<AgentError>,
     pub tracking: Tracking,
+}
+
+/// A turn that ended on an API error (Claude Code's `StopFailure`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct AgentError {
+    /// Claude Code's error type, such as `rate_limit` or `authentication_failed`.
+    pub error: String,
+    /// What the agent showed the user, when it said.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

@@ -9,6 +9,17 @@
           "description": "Where the agent session started; `claude --resume` finds it only there.",
           "type": "string"
         },
+        "lastError": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AgentError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Why the last turn failed; cleared by the next prompt. Only hooks report it."
+        },
         "name": {
           "type": [
             "string",
@@ -34,6 +45,26 @@
         "cwd",
         "state",
         "tracking"
+      ],
+      "type": "object"
+    },
+    "AgentError": {
+      "description": "A turn that ended on an API error (Claude Code's `StopFailure`).",
+      "properties": {
+        "error": {
+          "description": "Claude Code's error type, such as `rate_limit` or `authentication_failed`.",
+          "type": "string"
+        },
+        "message": {
+          "description": "What the agent showed the user, when it said.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "error"
       ],
       "type": "object"
     },

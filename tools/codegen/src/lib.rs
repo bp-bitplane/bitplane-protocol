@@ -4,7 +4,10 @@
 use bitplane_protocol::{
     Capability, ClientInfo, DaemonInfo, DaemonShutdownParams, ErrorCode, ErrorData, HelloParams,
     HelloResult, Id, Notification, Request, Response, RpcError,
-    agent::{Agent, AgentListResult, AgentRef, AgentResult, AgentState, Tracking, WaitingReason},
+    agent::{
+        Agent, AgentError, AgentListResult, AgentRef, AgentResult, AgentState, Tracking,
+        WaitingReason,
+    },
     rpc::Outcome,
     session::{
         AttachmentAckParams, AttachmentError, AttachmentOpenParams, AttachmentOpenResult,
@@ -48,6 +51,7 @@ pub fn typescript() -> String {
         .register::<AttachmentAckParams>()
         .register::<AttachmentError>()
         .register::<Agent>()
+        .register::<AgentError>()
         .register::<AgentState>()
         .register::<WaitingReason>()
         .register::<Tracking>()
