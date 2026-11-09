@@ -267,6 +267,11 @@ export type ErrorCode =
 "ROOT_GONE" | 
 /**  A path the request names does not exist. */
 "NOT_FOUND" | 
+/**
+ *  `session.open { agent: { resume } }` names an agent session already running or
+ *  resuming in another session.
+ */
+"AGENT_LIVE" | 
 /**  Any code this build does not know, from a newer peer. */
 "UNKNOWN";
 
@@ -406,6 +411,11 @@ export type RpcError_Serialize = {
 
 export type Session = Session_Serialize | Session_Deserialize;
 
+/**  What an agent terminal runs (sessiond ADR 0029). */
+export type SessionAgent = {
+	kind: string,
+};
+
 /**
  *  The result of `session.busy`: busy when the terminal's foreground process
  *  is not the shell, and then that process's name.
@@ -441,31 +451,74 @@ export type SessionListResult_Serialize = {
 };
 
 /**
+ *  The agent an agent terminal launches. `resume` continues that agent
+ *  session; one live elsewhere gets `AGENT_LIVE`. The agent starts in `cwd`,
+ *  which may lie outside the root; without it, a resumed agent session
+ *  starts where the daemon knows it ran, else in the root. A `cwd` that is
+ *  not a directory makes the session `spawnFailed { error }` with its agent
+ *  link kept, so `session.restart` works once the directory is back.
+ */
+export type SessionOpenAgent = SessionOpenAgent_Serialize | SessionOpenAgent_Deserialize;
+
+/**
+ *  The agent an agent terminal launches. `resume` continues that agent
+ *  session; one live elsewhere gets `AGENT_LIVE`. The agent starts in `cwd`,
+ *  which may lie outside the root; without it, a resumed agent session
+ *  starts where the daemon knows it ran, else in the root. A `cwd` that is
+ *  not a directory makes the session `spawnFailed { error }` with its agent
+ *  link kept, so `session.restart` works once the directory is back.
+ */
+export type SessionOpenAgent_Deserialize = {
+	kind: string,
+	resume?: string | null,
+	cwd?: string | null,
+};
+
+/**
+ *  The agent an agent terminal launches. `resume` continues that agent
+ *  session; one live elsewhere gets `AGENT_LIVE`. The agent starts in `cwd`,
+ *  which may lie outside the root; without it, a resumed agent session
+ *  starts where the daemon knows it ran, else in the root. A `cwd` that is
+ *  not a directory makes the session `spawnFailed { error }` with its agent
+ *  link kept, so `session.restart` works once the directory is back.
+ */
+export type SessionOpenAgent_Serialize = {
+	kind: string,
+	resume?: string | null,
+	cwd?: string | null,
+};
+
+/**
  *  `session.open`: `root` must be an existing directory. `env` is set on top
- *  of the daemon's login-shell environment.
+ *  of the daemon's login-shell environment. Without `agent` the session is a
+ *  regular terminal running the login shell; with it, an agent terminal.
  */
 export type SessionOpenParams = SessionOpenParams_Serialize | SessionOpenParams_Deserialize;
 
 /**
  *  `session.open`: `root` must be an existing directory. `env` is set on top
- *  of the daemon's login-shell environment.
+ *  of the daemon's login-shell environment. Without `agent` the session is a
+ *  regular terminal running the login shell; with it, an agent terminal.
  */
 export type SessionOpenParams_Deserialize = {
 	root: string,
 	env?: { [key in string]: string } | null,
 	plane?: string | null,
 	name?: string | null,
+	agent?: SessionOpenAgent_Deserialize | null,
 };
 
 /**
  *  `session.open`: `root` must be an existing directory. `env` is set on top
- *  of the daemon's login-shell environment.
+ *  of the daemon's login-shell environment. Without `agent` the session is a
+ *  regular terminal running the login shell; with it, an agent terminal.
  */
 export type SessionOpenParams_Serialize = {
 	root: string,
 	env?: { [key in string]: string } | null,
 	plane?: string | null,
 	name?: string | null,
+	agent?: SessionOpenAgent_Serialize | null,
 };
 
 /**
@@ -528,6 +581,8 @@ export type Session_Deserialize = {
 	 */
 	foreground?: string | null,
 	status: SessionStatus,
+	/**  Set on an agent terminal, whose process is the agent itself, not a shell. */
+	agent?: SessionAgent | null,
 	/**
 	 *  The root no longer exists; a running shell keeps running, and
 	 *  `session.restart` gets `ROOT_GONE` until it is back.
@@ -556,6 +611,8 @@ export type Session_Serialize = {
 	 */
 	foreground?: string | null,
 	status: SessionStatus,
+	/**  Set on an agent terminal, whose process is the agent itself, not a shell. */
+	agent?: SessionAgent | null,
 	/**
 	 *  The root no longer exists; a running shell keeps running, and
 	 *  `session.restart` gets `ROOT_GONE` until it is back.

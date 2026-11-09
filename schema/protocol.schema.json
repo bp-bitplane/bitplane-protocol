@@ -482,6 +482,11 @@
           "type": "string"
         },
         {
+          "const": "AGENT_LIVE",
+          "description": "`session.open { agent: { resume } }` names an agent session already running or\nresuming in another session.",
+          "type": "string"
+        },
+        {
           "const": "UNKNOWN",
           "description": "Any code this build does not know, from a newer peer.",
           "type": "string"
@@ -669,6 +674,17 @@
     },
     "Session": {
       "properties": {
+        "agent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SessionAgent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set on an agent terminal, whose process is the agent itself, not a shell."
+        },
         "attachments": {
           "description": "How many attachments the session has, across all clients.",
           "format": "uint32",
@@ -738,6 +754,18 @@
       ],
       "type": "object"
     },
+    "SessionAgent": {
+      "description": "What an agent terminal runs (sessiond ADR 0029).",
+      "properties": {
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
     "SessionBusyResult": {
       "description": "The result of `session.busy`: busy when the terminal's foreground process\nis not the shell, and then that process's name.",
       "properties": {
@@ -770,9 +798,43 @@
       ],
       "type": "object"
     },
-    "SessionOpenParams": {
-      "description": "`session.open`: `root` must be an existing directory. `env` is set on top\nof the daemon's login-shell environment.",
+    "SessionOpenAgent": {
+      "description": "The agent an agent terminal launches. `resume` continues that agent\nsession; one live elsewhere gets `AGENT_LIVE`. The agent starts in `cwd`,\nwhich may lie outside the root; without it, a resumed agent session\nstarts where the daemon knows it ran, else in the root. A `cwd` that is\nnot a directory makes the session `spawnFailed { error }` with its agent\nlink kept, so `session.restart` works once the directory is back.",
       "properties": {
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "type": "string"
+        },
+        "resume": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "SessionOpenParams": {
+      "description": "`session.open`: `root` must be an existing directory. `env` is set on top\nof the daemon's login-shell environment. Without `agent` the session is a\nregular terminal running the login shell; with it, an agent terminal.",
+      "properties": {
+        "agent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SessionOpenAgent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "env": {
           "additionalProperties": {
             "type": "string"

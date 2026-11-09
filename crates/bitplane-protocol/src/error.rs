@@ -46,6 +46,9 @@ pub enum ErrorCode {
     RootGone,
     /// A path the request names does not exist.
     NotFound,
+    /// `session.open { agent: { resume } }` names an agent session already running or
+    /// resuming in another session.
+    AgentLive,
     /// Any code this build does not know, from a newer peer.
     Unknown,
 }
@@ -63,6 +66,7 @@ crate::open_enum::deserialize_as_unknown!(
         SessionExited,
         RootGone,
         NotFound,
+        AgentLive,
     ]
 );
 
