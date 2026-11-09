@@ -37,7 +37,18 @@ fn an_unknown_session_state_decodes_as_unknown() {
 fn open_params_need_only_a_root() {
     let params: SessionOpenParams = serde_json::from_value(json!({"root": "/tmp"})).unwrap();
     assert_eq!(params.root, "/tmp");
-    assert!(params.env.is_none() && params.plane.is_none());
+    assert!(params.env.is_none() && params.plane.is_none() && params.resume.is_none());
+}
+
+#[test]
+fn open_params_may_resume_an_agent_session() {
+    let params: SessionOpenParams =
+        serde_json::from_value(json!({"root": "/r", "resume": "a1"})).unwrap();
+    assert_eq!(params.resume.as_deref(), Some("a1"));
+    assert_eq!(
+        serde_json::to_value(&params).unwrap(),
+        json!({"root": "/r", "resume": "a1"})
+    );
 }
 
 #[test]
@@ -67,6 +78,7 @@ fn session_error_codes_round_trip() {
         "SESSION_EXITED",
         "ROOT_GONE",
         "NOT_FOUND",
+        "AGENT_LIVE",
     ] {
         let decoded: ErrorCode = serde_json::from_value(json!(code)).unwrap();
         assert_ne!(decoded, ErrorCode::Unknown, "{code}");

@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::ErrorCode;
+use crate::agent::AgentSessionId;
 
 /// A stable opaque string (a UUID), also the shell's `BITPLANE_SESSION_ID`.
 pub type SessionId = String;
@@ -71,7 +72,8 @@ pub struct Size {
 }
 
 /// `session.open`: `root` must be an existing directory. `env` is set on top
-/// of the daemon's login-shell environment.
+/// of the daemon's login-shell environment. `resume` types the agent's resume
+/// line into the new shell; an agent session live elsewhere gets `AGENT_LIVE`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -83,6 +85,8 @@ pub struct SessionOpenParams {
     pub plane: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resume: Option<AgentSessionId>,
 }
 
 /// The result of `session.open`, and the `session.changed` event.

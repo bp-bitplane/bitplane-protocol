@@ -237,6 +237,11 @@ export type ErrorCode =
 "ROOT_GONE" | 
 /**  A path the request names does not exist. */
 "NOT_FOUND" | 
+/**
+ *  `session.open { resume }` names an agent session already running or
+ *  resuming in another session.
+ */
+"AGENT_LIVE" | 
 /**  Any code this build does not know, from a newer peer. */
 "UNKNOWN";
 
@@ -412,30 +417,35 @@ export type SessionListResult_Serialize = {
 
 /**
  *  `session.open`: `root` must be an existing directory. `env` is set on top
- *  of the daemon's login-shell environment.
+ *  of the daemon's login-shell environment. `resume` types the agent's resume
+ *  line into the new shell; an agent session live elsewhere gets `AGENT_LIVE`.
  */
 export type SessionOpenParams = SessionOpenParams_Serialize | SessionOpenParams_Deserialize;
 
 /**
  *  `session.open`: `root` must be an existing directory. `env` is set on top
- *  of the daemon's login-shell environment.
+ *  of the daemon's login-shell environment. `resume` types the agent's resume
+ *  line into the new shell; an agent session live elsewhere gets `AGENT_LIVE`.
  */
 export type SessionOpenParams_Deserialize = {
 	root: string,
 	env?: { [key in string]: string } | null,
 	plane?: string | null,
 	name?: string | null,
+	resume?: string | null,
 };
 
 /**
  *  `session.open`: `root` must be an existing directory. `env` is set on top
- *  of the daemon's login-shell environment.
+ *  of the daemon's login-shell environment. `resume` types the agent's resume
+ *  line into the new shell; an agent session live elsewhere gets `AGENT_LIVE`.
  */
 export type SessionOpenParams_Serialize = {
 	root: string,
 	env?: { [key in string]: string } | null,
 	plane?: string | null,
 	name?: string | null,
+	resume?: string | null,
 };
 
 /**

@@ -449,6 +449,11 @@
           "type": "string"
         },
         {
+          "const": "AGENT_LIVE",
+          "description": "`session.open { resume }` names an agent session already running or\nresuming in another session.",
+          "type": "string"
+        },
+        {
           "const": "UNKNOWN",
           "description": "Any code this build does not know, from a newer peer.",
           "type": "string"
@@ -738,7 +743,7 @@
       "type": "object"
     },
     "SessionOpenParams": {
-      "description": "`session.open`: `root` must be an existing directory. `env` is set on top\nof the daemon's login-shell environment.",
+      "description": "`session.open`: `root` must be an existing directory. `env` is set on top\nof the daemon's login-shell environment. `resume` types the agent's resume\nline into the new shell; an agent session live elsewhere gets `AGENT_LIVE`.",
       "properties": {
         "env": {
           "additionalProperties": {
@@ -756,6 +761,12 @@
           ]
         },
         "plane": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resume": {
           "type": [
             "string",
             "null"
