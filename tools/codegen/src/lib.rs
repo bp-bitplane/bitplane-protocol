@@ -4,6 +4,7 @@
 use bitplane_protocol::{
     Capability, ClientInfo, DaemonInfo, DaemonShutdownParams, ErrorCode, ErrorData, HelloParams,
     HelloResult, Id, Notification, Request, Response, RpcError,
+    agent::{Agent, AgentListResult, AgentRef, AgentResult, AgentState, Tracking, WaitingReason},
     rpc::Outcome,
     session::{
         AttachmentAckParams, AttachmentError, AttachmentOpenParams, AttachmentOpenResult,
@@ -45,7 +46,14 @@ pub fn typescript() -> String {
         .register::<AttachmentResizeParams>()
         .register::<AttachmentRef>()
         .register::<AttachmentAckParams>()
-        .register::<AttachmentError>();
+        .register::<AttachmentError>()
+        .register::<Agent>()
+        .register::<AgentState>()
+        .register::<WaitingReason>()
+        .register::<Tracking>()
+        .register::<AgentListResult>()
+        .register::<AgentResult>()
+        .register::<AgentRef>();
     specta_typescript::Typescript::default()
         .header("// Generated from the bitplane-protocol crate. Do not edit.")
         .export(&types, specta_serde::PhasesFormat)
@@ -72,6 +80,9 @@ pub fn json_schema() -> String {
     generator.subschema_for::<AttachmentRef>();
     generator.subschema_for::<AttachmentAckParams>();
     generator.subschema_for::<AttachmentError>();
+    generator.subschema_for::<AgentListResult>();
+    generator.subschema_for::<AgentResult>();
+    generator.subschema_for::<AgentRef>();
     let schema = serde_json::json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "bitplane protocol",

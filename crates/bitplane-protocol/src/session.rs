@@ -62,6 +62,12 @@ pub enum SessionStatus {
     Unknown,
 }
 
+crate::open_enum::deserialize_tagged_as_unknown!(
+    SessionStatus,
+    "state",
+    [Running, Exited { code: i32 }, SpawnFailed { error: String }]
+);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -195,32 +201,4 @@ pub struct AttachmentError {
     pub attachment: AttachmentId,
     pub code: ErrorCode,
     pub message: String,
-}
-
-/// A `state` this build does not name decodes as `Unknown`; specta cannot
-/// export `#[serde(other)]` on a tagged enum (see `open_enum`).
-impl<'de> Deserialize<'de> for SessionStatus {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        #[derive(Deserialize)]
-        #[serde(tag = "state", rename_all = "camelCase")]
-        enum Known {
-            Running,
-            Exited { code: i32 },
-            SpawnFailed { error: String },
-        }
-        let value = serde_json::Value::deserialize(deserializer)?;
-        if !matches!(
-            value.get("state").and_then(|state| state.as_str()),
-            Some("running" | "exited" | "spawnFailed")
-        ) {
-            return Ok(SessionStatus::Unknown);
-        }
-        Ok(
-            match Known::deserialize(value).map_err(serde::de::Error::custom)? {
-                Known::Running => SessionStatus::Running,
-                Known::Exited { code } => SessionStatus::Exited { code },
-                Known::SpawnFailed { error } => SessionStatus::SpawnFailed { error },
-            },
-        )
-    }
 }

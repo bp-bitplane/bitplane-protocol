@@ -1,5 +1,163 @@
 {
   "$defs": {
+    "Agent": {
+      "properties": {
+        "agentSession": {
+          "type": "string"
+        },
+        "cwd": {
+          "description": "Where the agent session started; `claude --resume` finds it only there.",
+          "type": "string"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session": {
+          "description": "The session the agent runs in; `null` once that session is closed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/AgentState"
+        },
+        "tracking": {
+          "$ref": "#/$defs/Tracking"
+        }
+      },
+      "required": [
+        "agentSession",
+        "cwd",
+        "state",
+        "tracking"
+      ],
+      "type": "object"
+    },
+    "AgentListResult": {
+      "properties": {
+        "agents": {
+          "items": {
+            "$ref": "#/$defs/Agent"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "agents"
+      ],
+      "type": "object"
+    },
+    "AgentRef": {
+      "description": "Names one agent: the `agent.claude.removed` event.",
+      "properties": {
+        "agentSession": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "agentSession"
+      ],
+      "type": "object"
+    },
+    "AgentResult": {
+      "description": "The `agent.claude.changed` event.",
+      "properties": {
+        "agent": {
+          "$ref": "#/$defs/Agent"
+        }
+      },
+      "required": [
+        "agent"
+      ],
+      "type": "object"
+    },
+    "AgentState": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "idle",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A turn is running.",
+          "properties": {
+            "kind": {
+              "const": "busy",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "waiting",
+              "type": "string"
+            },
+            "reason": {
+              "$ref": "#/$defs/WaitingReason"
+            }
+          },
+          "required": [
+            "kind",
+            "reason"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "`claude --resume` was typed; no `SessionStart` has arrived yet.",
+          "properties": {
+            "kind": {
+              "const": "resuming",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "exited",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Any state this build does not know, from a newer peer.",
+          "properties": {
+            "kind": {
+              "const": "unknown",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "AttachmentAckParams": {
       "description": "The client notification `session.attachment.ack`: `bytes` is the\ncumulative count of SNAPSHOT and OUTPUT data the client has drawn on this\nattachment. The daemon keeps at most 128 KiB unacknowledged.",
       "properties": {
@@ -706,6 +864,40 @@
         "rows"
       ],
       "type": "object"
+    },
+    "Tracking": {
+      "description": "Where the agent's state comes from: its hooks, or only the polled\n`claude agents --json` registry when the hooks did not load.",
+      "oneOf": [
+        {
+          "enum": [
+            "hooks",
+            "poll"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "unknown",
+          "description": "Any mode this build does not know, from a newer peer.",
+          "type": "string"
+        }
+      ]
+    },
+    "WaitingReason": {
+      "oneOf": [
+        {
+          "enum": [
+            "permission",
+            "input",
+            "other"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "unknown",
+          "description": "Any reason this build does not know, from a newer peer.",
+          "type": "string"
+        }
+      ]
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
