@@ -1,6 +1,7 @@
 //! Protocol v1 of the bitplane stack (ADR 0021, ADR 0024): wire types and
 //! frame codecs, no logic.
 
+pub mod agent;
 pub mod error;
 pub mod frame;
 pub mod hello;
@@ -38,4 +39,12 @@ pub mod method {
     pub const SESSION_CHANGED: &str = "session.changed";
     pub const SESSION_REMOVED: &str = "session.removed";
     pub const SESSION_ATTACHMENT_ERROR: &str = "session.attachment.error";
+
+    pub const AGENT_LIST: &str = "agent.list";
+
+    /// Events. `changed` carries the agent's `session` always, `null` once
+    /// that session is closed; `kind.changed` follows a kind's availability.
+    pub const AGENT_CHANGED: &str = "agent.changed";
+    pub const AGENT_REMOVED: &str = "agent.removed";
+    pub const AGENT_KIND_CHANGED: &str = "agent.kind.changed";
 }

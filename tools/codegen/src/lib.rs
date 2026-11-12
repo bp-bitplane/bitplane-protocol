@@ -4,11 +4,16 @@
 use bitplane_protocol::{
     Capability, ClientInfo, DaemonInfo, DaemonShutdownParams, ErrorCode, ErrorData, HelloParams,
     HelloResult, Id, Notification, Request, Response, RpcError,
+    agent::{
+        Agent, AgentError, AgentKindStatus, AgentListResult, AgentRef, AgentResult, AgentState,
+        Tracking, WaitingReason,
+    },
     rpc::Outcome,
     session::{
         AttachmentAckParams, AttachmentError, AttachmentOpenParams, AttachmentOpenResult,
-        AttachmentRef, AttachmentResizeParams, Session, SessionBusyResult, SessionListResult,
-        SessionOpenParams, SessionRef, SessionRenameParams, SessionResult, SessionStatus, Size,
+        AttachmentRef, AttachmentResizeParams, Session, SessionAgent, SessionBusyResult,
+        SessionListResult, SessionOpenAgent, SessionOpenParams, SessionRef, SessionRenameParams,
+        SessionResult, SessionStatus, Size,
     },
 };
 
@@ -34,7 +39,9 @@ pub fn typescript() -> String {
         .register::<Session>()
         .register::<SessionStatus>()
         .register::<Size>()
+        .register::<SessionAgent>()
         .register::<SessionOpenParams>()
+        .register::<SessionOpenAgent>()
         .register::<SessionResult>()
         .register::<SessionListResult>()
         .register::<SessionRef>()
@@ -45,7 +52,16 @@ pub fn typescript() -> String {
         .register::<AttachmentResizeParams>()
         .register::<AttachmentRef>()
         .register::<AttachmentAckParams>()
-        .register::<AttachmentError>();
+        .register::<AttachmentError>()
+        .register::<Agent>()
+        .register::<AgentError>()
+        .register::<AgentState>()
+        .register::<WaitingReason>()
+        .register::<Tracking>()
+        .register::<AgentListResult>()
+        .register::<AgentKindStatus>()
+        .register::<AgentResult>()
+        .register::<AgentRef>();
     specta_typescript::Typescript::default()
         .header("// Generated from the bitplane-protocol crate. Do not edit.")
         .export(&types, specta_serde::PhasesFormat)
@@ -72,6 +88,10 @@ pub fn json_schema() -> String {
     generator.subschema_for::<AttachmentRef>();
     generator.subschema_for::<AttachmentAckParams>();
     generator.subschema_for::<AttachmentError>();
+    generator.subschema_for::<AgentListResult>();
+    generator.subschema_for::<AgentResult>();
+    generator.subschema_for::<AgentRef>();
+    generator.subschema_for::<AgentKindStatus>();
     let schema = serde_json::json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "bitplane protocol",
