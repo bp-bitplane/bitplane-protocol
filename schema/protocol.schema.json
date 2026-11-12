@@ -483,7 +483,7 @@
         },
         {
           "const": "AGENT_LIVE",
-          "description": "`session.open { resume }` names an agent session already running or\nresuming in another session.",
+          "description": "`session.open { agent: { resume } }` names an agent session already running or\nresuming in another session.",
           "type": "string"
         },
         {
@@ -674,6 +674,17 @@
     },
     "Session": {
       "properties": {
+        "agent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SessionAgent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set on an agent terminal, whose process is the agent itself, not a shell."
+        },
         "attachments": {
           "description": "How many attachments the session has, across all clients.",
           "format": "uint32",
@@ -743,6 +754,18 @@
       ],
       "type": "object"
     },
+    "SessionAgent": {
+      "description": "What an agent terminal runs (ADR 0029).",
+      "properties": {
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
     "SessionBusyResult": {
       "description": "The result of `session.busy`: busy when the terminal's foreground process\nis not the shell, and then that process's name.",
       "properties": {
@@ -775,9 +798,43 @@
       ],
       "type": "object"
     },
-    "SessionOpenParams": {
-      "description": "`session.open`: `root` must be an existing directory. `env` is set on top\nof the daemon's login-shell environment. `resume` types the agent's resume\nline into the new shell; an agent session live elsewhere gets `AGENT_LIVE`.",
+    "SessionOpenAgent": {
+      "description": "The agent an agent terminal launches. `resume` continues that agent\nsession; one live elsewhere gets `AGENT_LIVE`. `cwd` is where the agent\nstarts instead of the root.",
       "properties": {
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "type": "string"
+        },
+        "resume": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "SessionOpenParams": {
+      "description": "`session.open`: `root` must be an existing directory. `env` is set on top\nof the daemon's login-shell environment. Without `agent` the session is a\nregular terminal running the login shell; with it, an agent terminal.",
+      "properties": {
+        "agent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SessionOpenAgent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "env": {
           "additionalProperties": {
             "type": "string"
@@ -794,12 +851,6 @@
           ]
         },
         "plane": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "resume": {
           "type": [
             "string",
             "null"

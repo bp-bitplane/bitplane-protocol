@@ -11,8 +11,9 @@ use bitplane_protocol::{
     rpc::Outcome,
     session::{
         AttachmentAckParams, AttachmentError, AttachmentOpenParams, AttachmentOpenResult,
-        AttachmentRef, AttachmentResizeParams, Session, SessionBusyResult, SessionListResult,
-        SessionOpenParams, SessionRef, SessionRenameParams, SessionResult, SessionStatus, Size,
+        AttachmentRef, AttachmentResizeParams, Session, SessionAgent, SessionBusyResult,
+        SessionListResult, SessionOpenAgent, SessionOpenParams, SessionRef, SessionRenameParams,
+        SessionResult, SessionStatus, Size,
     },
 };
 
@@ -38,7 +39,9 @@ pub fn typescript() -> String {
         .register::<Session>()
         .register::<SessionStatus>()
         .register::<Size>()
+        .register::<SessionAgent>()
         .register::<SessionOpenParams>()
+        .register::<SessionOpenAgent>()
         .register::<SessionResult>()
         .register::<SessionListResult>()
         .register::<SessionRef>()

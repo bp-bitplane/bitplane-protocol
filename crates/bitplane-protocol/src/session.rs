@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::ErrorCode;
-use crate::agent::AgentSessionId;
+use crate::agent::{AgentKind, AgentSessionId};
 
 /// A stable opaque string (a UUID), also the shell's `BITPLANE_SESSION_ID`.
 pub type SessionId = String;
@@ -37,6 +37,9 @@ pub struct Session {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub foreground: Option<String>,
     pub status: SessionStatus,
+    /// Set on an agent terminal, whose process is the agent itself, not a shell.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<SessionAgent>,
     /// The root no longer exists; a running shell keeps running, and
     /// `session.restart` gets `ROOT_GONE` until it is back.
     #[serde(default)]
@@ -71,9 +74,17 @@ pub struct Size {
     pub rows: u16,
 }
 
+/// What an agent terminal runs (ADR 0029).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct SessionAgent {
+    pub kind: AgentKind,
+}
+
 /// `session.open`: `root` must be an existing directory. `env` is set on top
-/// of the daemon's login-shell environment. `resume` types the agent's resume
-/// line into the new shell; an agent session live elsewhere gets `AGENT_LIVE`.
+/// of the daemon's login-shell environment. Without `agent` the session is a
+/// regular terminal running the login shell; with it, an agent terminal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -86,7 +97,21 @@ pub struct SessionOpenParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<SessionOpenAgent>,
+}
+
+/// The agent an agent terminal launches. `resume` continues that agent
+/// session; one live elsewhere gets `AGENT_LIVE`. `cwd` is where the agent
+/// starts instead of the root.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct SessionOpenAgent {
+    pub kind: AgentKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resume: Option<AgentSessionId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
 }
 
 /// The result of `session.open`, and the `session.changed` event.

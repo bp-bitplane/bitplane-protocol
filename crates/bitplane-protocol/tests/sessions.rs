@@ -37,17 +37,29 @@ fn an_unknown_session_state_decodes_as_unknown() {
 fn open_params_need_only_a_root() {
     let params: SessionOpenParams = serde_json::from_value(json!({"root": "/tmp"})).unwrap();
     assert_eq!(params.root, "/tmp");
-    assert!(params.env.is_none() && params.plane.is_none() && params.resume.is_none());
+    assert!(params.env.is_none() && params.plane.is_none() && params.agent.is_none());
 }
 
 #[test]
-fn open_params_may_resume_an_agent_session() {
-    let params: SessionOpenParams =
-        serde_json::from_value(json!({"root": "/r", "resume": "a1"})).unwrap();
-    assert_eq!(params.resume.as_deref(), Some("a1"));
+fn open_params_may_open_an_agent_terminal_that_resumes() {
+    let params: SessionOpenParams = serde_json::from_value(
+        json!({"root": "/r", "agent": {"kind": "claude", "resume": "a1", "cwd": "/r/web"}}),
+    )
+    .unwrap();
+    let agent = params.agent.clone().unwrap();
     assert_eq!(
-        serde_json::to_value(&params).unwrap(),
-        json!({"root": "/r", "resume": "a1"})
+        (
+            agent.kind.as_str(),
+            agent.resume.as_deref(),
+            agent.cwd.as_deref()
+        ),
+        ("claude", Some("a1"), Some("/r/web"))
+    );
+    let fresh: SessionOpenParams =
+        serde_json::from_value(json!({"root": "/r", "agent": {"kind": "claude"}})).unwrap();
+    assert_eq!(
+        serde_json::to_value(&fresh).unwrap(),
+        json!({"root": "/r", "agent": {"kind": "claude"}})
     );
 }
 
@@ -126,6 +138,31 @@ fn a_session_carries_its_name_title_foreground_and_root_gone() {
     .unwrap();
     assert!(!older.root_gone && older.name.is_none() && older.title.is_none());
     assert_eq!(serde_json::to_value(&older).unwrap()["rootGone"], false);
+}
+
+#[test]
+fn an_agent_terminal_names_its_kind_and_a_regular_one_has_no_agent() {
+    let session = json!({
+        "id": "5b0c", "seq": 1, "root": "/r", "agent": {"kind": "claude"},
+        "status": {"state": "spawnFailed", "error": "claude not found on PATH"},
+        "rootGone": false, "size": {"cols": 80, "rows": 24}, "attachments": 0,
+    });
+    let decoded: Session = serde_json::from_value(session.clone()).unwrap();
+    assert_eq!(decoded.agent.as_ref().unwrap().kind, "claude");
+    assert_eq!(serde_json::to_value(&decoded).unwrap(), session);
+
+    let regular: Session = serde_json::from_value(json!({
+        "id": "5b0c", "seq": 1, "root": "/r", "status": {"state": "running"},
+        "size": {"cols": 80, "rows": 24}, "attachments": 0,
+    }))
+    .unwrap();
+    assert!(regular.agent.is_none());
+    assert!(
+        serde_json::to_value(&regular)
+            .unwrap()
+            .get("agent")
+            .is_none()
+    );
 }
 
 #[test]
