@@ -101,8 +101,10 @@ pub struct SessionOpenParams {
 }
 
 /// The agent an agent terminal launches. `resume` continues that agent
-/// session; one live elsewhere gets `AGENT_LIVE`. `cwd` is where the agent
-/// starts instead of the root.
+/// session; one live elsewhere gets `AGENT_LIVE`. The agent starts in `cwd`,
+/// which may lie outside the root; without it, a resumed agent session
+/// starts where the daemon knows it ran, else in the root. A `cwd` that is
+/// not a directory makes the session `spawnFailed`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]

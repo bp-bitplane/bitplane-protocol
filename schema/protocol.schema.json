@@ -799,7 +799,7 @@
       "type": "object"
     },
     "SessionOpenAgent": {
-      "description": "The agent an agent terminal launches. `resume` continues that agent\nsession; one live elsewhere gets `AGENT_LIVE`. `cwd` is where the agent\nstarts instead of the root.",
+      "description": "The agent an agent terminal launches. `resume` continues that agent\nsession; one live elsewhere gets `AGENT_LIVE`. The agent starts in `cwd`,\nwhich may lie outside the root; without it, a resumed agent session\nstarts where the daemon knows it ran, else in the root. A `cwd` that is\nnot a directory makes the session `spawnFailed`.",
       "properties": {
         "cwd": {
           "type": [

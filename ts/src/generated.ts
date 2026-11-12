@@ -452,15 +452,19 @@ export type SessionListResult_Serialize = {
 
 /**
  *  The agent an agent terminal launches. `resume` continues that agent
- *  session; one live elsewhere gets `AGENT_LIVE`. `cwd` is where the agent
- *  starts instead of the root.
+ *  session; one live elsewhere gets `AGENT_LIVE`. The agent starts in `cwd`,
+ *  which may lie outside the root; without it, a resumed agent session
+ *  starts where the daemon knows it ran, else in the root. A `cwd` that is
+ *  not a directory makes the session `spawnFailed`.
  */
 export type SessionOpenAgent = SessionOpenAgent_Serialize | SessionOpenAgent_Deserialize;
 
 /**
  *  The agent an agent terminal launches. `resume` continues that agent
- *  session; one live elsewhere gets `AGENT_LIVE`. `cwd` is where the agent
- *  starts instead of the root.
+ *  session; one live elsewhere gets `AGENT_LIVE`. The agent starts in `cwd`,
+ *  which may lie outside the root; without it, a resumed agent session
+ *  starts where the daemon knows it ran, else in the root. A `cwd` that is
+ *  not a directory makes the session `spawnFailed`.
  */
 export type SessionOpenAgent_Deserialize = {
 	kind: string,
@@ -470,8 +474,10 @@ export type SessionOpenAgent_Deserialize = {
 
 /**
  *  The agent an agent terminal launches. `resume` continues that agent
- *  session; one live elsewhere gets `AGENT_LIVE`. `cwd` is where the agent
- *  starts instead of the root.
+ *  session; one live elsewhere gets `AGENT_LIVE`. The agent starts in `cwd`,
+ *  which may lie outside the root; without it, a resumed agent session
+ *  starts where the daemon knows it ran, else in the root. A `cwd` that is
+ *  not a directory makes the session `spawnFailed`.
  */
 export type SessionOpenAgent_Serialize = {
 	kind: string,
