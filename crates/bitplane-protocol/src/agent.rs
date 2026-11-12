@@ -1,18 +1,22 @@
-//! The `agent.claude` module's method and events: the Claude Code agents
-//! running inside daemon sessions.
+//! The `agent` module's method and events: the coding agents running in
+//! agent terminals, of every kind (ADR 0029).
 
 use serde::{Deserialize, Serialize};
 
 use crate::session::SessionId;
 
-/// Claude Code's own session id, as its `SessionStart` hook reports it.
+/// The agent's own session id, as its `SessionStart` hook reports it.
 pub type AgentSessionId = String;
+
+/// An agent kind, such as `claude`; open, so a newer daemon's kinds pass through.
+pub type AgentKind = String;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct Agent {
+    pub kind: AgentKind,
     pub agent_session: AgentSessionId,
     /// The session the agent runs in; `null` once that session is closed.
     pub session: Option<SessionId>,
@@ -50,7 +54,7 @@ pub enum AgentState {
     Waiting {
         reason: WaitingReason,
     },
-    /// `claude --resume` was typed; no `SessionStart` has arrived yet.
+    /// The agent was launched resuming it; no `SessionStart` has arrived yet.
     Resuming,
     Exited,
     /// Any state this build does not know, from a newer peer.
@@ -90,10 +94,23 @@ crate::open_enum::deserialize_as_unknown!(Tracking, [Hooks, Poll]);
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct AgentListResult {
+    pub kinds: Vec<AgentKindStatus>,
     pub agents: Vec<Agent>,
 }
 
-/// The `agent.claude.changed` event.
+/// Whether an agent terminal of `kind` can be launched on this host, and
+/// why not; also the `agent.kind.changed` event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct AgentKindStatus {
+    pub kind: AgentKind,
+    pub available: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// The `agent.changed` event.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -101,7 +118,7 @@ pub struct AgentResult {
     pub agent: Agent,
 }
 
-/// Names one agent: the `agent.claude.removed` event.
+/// Names one agent: the `agent.removed` event.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]

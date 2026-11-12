@@ -21,30 +21,58 @@ export type AgentError_Serialize = {
 	message?: string | null,
 };
 
+/**
+ *  Whether an agent terminal of `kind` can be launched on this host, and
+ *  why not; also the `agent.kind.changed` event.
+ */
+export type AgentKindStatus = AgentKindStatus_Serialize | AgentKindStatus_Deserialize;
+
+/**
+ *  Whether an agent terminal of `kind` can be launched on this host, and
+ *  why not; also the `agent.kind.changed` event.
+ */
+export type AgentKindStatus_Deserialize = {
+	kind: string,
+	available: boolean,
+	error?: string | null,
+};
+
+/**
+ *  Whether an agent terminal of `kind` can be launched on this host, and
+ *  why not; also the `agent.kind.changed` event.
+ */
+export type AgentKindStatus_Serialize = {
+	kind: string,
+	available: boolean,
+	error?: string | null,
+};
+
 export type AgentListResult = AgentListResult_Serialize | AgentListResult_Deserialize;
 
 export type AgentListResult_Deserialize = {
+	kinds: AgentKindStatus_Deserialize[],
 	agents: Agent_Deserialize[],
 };
 
 export type AgentListResult_Serialize = {
+	kinds: AgentKindStatus_Serialize[],
 	agents: Agent_Serialize[],
 };
 
-/**  Names one agent: the `agent.claude.removed` event. */
+/**  Names one agent: the `agent.removed` event. */
 export type AgentRef = {
 	agentSession: string,
 };
 
-/**  The `agent.claude.changed` event. */
+/**  The `agent.changed` event. */
 export type AgentResult = AgentResult_Serialize | AgentResult_Deserialize;
 
-/**  The `agent.claude.changed` event. */
+/**  The `agent.changed` event. */
 export type AgentResult_Deserialize = {
 	agent: Agent_Deserialize,
 };
 
-/**  The `agent.claude.changed` event. */
+/**  The `agent.changed` event. */
 export type AgentResult_Serialize = {
 	agent: Agent_Serialize,
 };
@@ -52,12 +80,13 @@ export type AgentResult_Serialize = {
 export type AgentState = { kind: "idle" } | 
 /**  A turn is running. */
 { kind: "busy" } | { kind: "waiting"; reason: WaitingReason } | 
-/**  `claude --resume` was typed; no `SessionStart` has arrived yet. */
+/**  The agent was launched resuming it; no `SessionStart` has arrived yet. */
 { kind: "resuming" } | { kind: "exited" } | 
 /**  Any state this build does not know, from a newer peer. */
 { kind: "unknown" };
 
 export type Agent_Deserialize = {
+	kind: string,
 	agentSession: string,
 	/**  The session the agent runs in; `null` once that session is closed. */
 	session: string | null,
@@ -71,6 +100,7 @@ export type Agent_Deserialize = {
 };
 
 export type Agent_Serialize = {
+	kind: string,
 	agentSession: string,
 	/**  The session the agent runs in; `null` once that session is closed. */
 	session: string | null,

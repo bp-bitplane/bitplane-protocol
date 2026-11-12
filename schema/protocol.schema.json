@@ -9,6 +9,9 @@
           "description": "Where the agent session started; `claude --resume` finds it only there.",
           "type": "string"
         },
+        "kind": {
+          "type": "string"
+        },
         "lastError": {
           "anyOf": [
             {
@@ -41,6 +44,7 @@
         }
       },
       "required": [
+        "kind",
         "agentSession",
         "cwd",
         "state",
@@ -68,6 +72,28 @@
       ],
       "type": "object"
     },
+    "AgentKindStatus": {
+      "description": "Whether an agent terminal of `kind` can be launched on this host, and\nwhy not; also the `agent.kind.changed` event.",
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "available"
+      ],
+      "type": "object"
+    },
     "AgentListResult": {
       "properties": {
         "agents": {
@@ -75,15 +101,22 @@
             "$ref": "#/$defs/Agent"
           },
           "type": "array"
+        },
+        "kinds": {
+          "items": {
+            "$ref": "#/$defs/AgentKindStatus"
+          },
+          "type": "array"
         }
       },
       "required": [
+        "kinds",
         "agents"
       ],
       "type": "object"
     },
     "AgentRef": {
-      "description": "Names one agent: the `agent.claude.removed` event.",
+      "description": "Names one agent: the `agent.removed` event.",
       "properties": {
         "agentSession": {
           "type": "string"
@@ -95,7 +128,7 @@
       "type": "object"
     },
     "AgentResult": {
-      "description": "The `agent.claude.changed` event.",
+      "description": "The `agent.changed` event.",
       "properties": {
         "agent": {
           "$ref": "#/$defs/Agent"
@@ -150,7 +183,7 @@
           "type": "object"
         },
         {
-          "description": "`claude --resume` was typed; no `SessionStart` has arrived yet.",
+          "description": "The agent was launched resuming it; no `SessionStart` has arrived yet.",
           "properties": {
             "kind": {
               "const": "resuming",

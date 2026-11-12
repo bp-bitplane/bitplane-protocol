@@ -40,10 +40,11 @@ pub mod method {
     pub const SESSION_REMOVED: &str = "session.removed";
     pub const SESSION_ATTACHMENT_ERROR: &str = "session.attachment.error";
 
-    pub const AGENT_CLAUDE_LIST: &str = "agent.claude.list";
+    pub const AGENT_LIST: &str = "agent.list";
 
     /// Events. `changed` carries the agent's `session` always, `null` once
-    /// that session is closed.
-    pub const AGENT_CLAUDE_CHANGED: &str = "agent.claude.changed";
-    pub const AGENT_CLAUDE_REMOVED: &str = "agent.claude.removed";
+    /// that session is closed; `kind.changed` follows a kind's availability.
+    pub const AGENT_CHANGED: &str = "agent.changed";
+    pub const AGENT_REMOVED: &str = "agent.removed";
+    pub const AGENT_KIND_CHANGED: &str = "agent.kind.changed";
 }
