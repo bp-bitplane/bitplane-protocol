@@ -626,6 +626,271 @@
       ],
       "type": "object"
     },
+    "GitChange": {
+      "properties": {
+        "from": {
+          "description": "The original path of a rename or copy.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/GitChangeKind"
+        },
+        "path": {
+          "description": "Repo-relative.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "GitChangeKind": {
+      "oneOf": [
+        {
+          "enum": [
+            "modified",
+            "typeChanged",
+            "added",
+            "deleted",
+            "renamed",
+            "copied",
+            "conflicted"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "unknown",
+          "description": "Any kind this build does not know, from a newer peer.",
+          "type": "string"
+        }
+      ]
+    },
+    "GitHead": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "branch",
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "name"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "`sha` is abbreviated to 7 characters.",
+          "properties": {
+            "kind": {
+              "const": "detached",
+              "type": "string"
+            },
+            "sha": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "sha"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Any head this build does not know, from a newer peer.",
+          "properties": {
+            "kind": {
+              "const": "unknown",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GitRepo": {
+      "description": "One repo path's state: also the `git.changed` event. Exactly one of\n`status`, `gone` and `error` is set.",
+      "properties": {
+        "error": {
+          "description": "git ran and failed, in its own words.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "gone": {
+          "description": "The path is missing or not a repo; in an event, it left the scope.",
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "GitRev": {
+      "oneOf": [
+        {
+          "enum": [
+            "head",
+            "index"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "unknown",
+          "description": "Any rev this build does not know, from a newer peer.",
+          "type": "string"
+        }
+      ]
+    },
+    "GitShowParams": {
+      "description": "`git.show`: `path` is relative to `repo`. A blob missing at `rev`, or a\n`repo` that is not a repo, gets `NOT_FOUND`. Replies with a [`Blob`](crate::fs::Blob).",
+      "properties": {
+        "maxBytes": {
+          "description": "Reply without `data` past this size; capped at [`READ_LIMIT`](crate::fs::READ_LIMIT), its default.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "rev": {
+          "$ref": "#/$defs/GitRev"
+        }
+      },
+      "required": [
+        "repo",
+        "path",
+        "rev"
+      ],
+      "type": "object"
+    },
+    "GitStatus": {
+      "properties": {
+        "head": {
+          "$ref": "#/$defs/GitHead"
+        },
+        "staged": {
+          "items": {
+            "$ref": "#/$defs/GitChange"
+          },
+          "type": "array"
+        },
+        "tracking": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitTracking"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Absent without an upstream, or when the upstream is gone."
+        },
+        "unstaged": {
+          "items": {
+            "$ref": "#/$defs/GitChange"
+          },
+          "type": "array"
+        },
+        "untracked": {
+          "description": "Repo-relative paths.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "head",
+        "staged",
+        "unstaged",
+        "untracked"
+      ],
+      "type": "object"
+    },
+    "GitStatusParams": {
+      "description": "`git.status`.",
+      "properties": {
+        "paths": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "paths"
+      ],
+      "type": "object"
+    },
+    "GitStatusResult": {
+      "properties": {
+        "repos": {
+          "description": "One per requested path, in order.",
+          "items": {
+            "$ref": "#/$defs/GitRepo"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "repos"
+      ],
+      "type": "object"
+    },
+    "GitTracking": {
+      "properties": {
+        "ahead": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "behind": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ahead",
+        "behind"
+      ],
+      "type": "object"
+    },
     "HelloParams": {
       "description": "`protocolVersion` is the newest version the client speaks,\n`minProtocolVersion` the oldest.",
       "properties": {

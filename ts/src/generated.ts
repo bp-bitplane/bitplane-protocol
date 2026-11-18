@@ -370,6 +370,144 @@ export type FsReadParams_Serialize = {
 	maxBytes?: number | null,
 };
 
+export type GitChange = GitChange_Serialize | GitChange_Deserialize;
+
+export type GitChangeKind = "modified" | "typeChanged" | "added" | "deleted" | "renamed" | "copied" | "conflicted" | 
+/**  Any kind this build does not know, from a newer peer. */
+"unknown";
+
+export type GitChange_Deserialize = {
+	/**  Repo-relative. */
+	path: string,
+	kind: GitChangeKind,
+	/**  The original path of a rename or copy. */
+	from?: string | null,
+};
+
+export type GitChange_Serialize = {
+	/**  Repo-relative. */
+	path: string,
+	kind: GitChangeKind,
+	/**  The original path of a rename or copy. */
+	from?: string | null,
+};
+
+export type GitHead = { kind: "branch"; name: string } | 
+/**  `sha` is abbreviated to 7 characters. */
+{ kind: "detached"; sha: string } | 
+/**  Any head this build does not know, from a newer peer. */
+{ kind: "unknown" };
+
+/**
+ *  One repo path's state: also the `git.changed` event. Exactly one of
+ *  `status`, `gone` and `error` is set.
+ */
+export type GitRepo = GitRepo_Serialize | GitRepo_Deserialize;
+
+/**
+ *  One repo path's state: also the `git.changed` event. Exactly one of
+ *  `status`, `gone` and `error` is set.
+ */
+export type GitRepo_Deserialize = {
+	path: string,
+	status?: GitStatus_Deserialize | null,
+	/**  The path is missing or not a repo; in an event, it left the scope. */
+	gone?: boolean,
+	/**  git ran and failed, in its own words. */
+	error?: string | null,
+};
+
+/**
+ *  One repo path's state: also the `git.changed` event. Exactly one of
+ *  `status`, `gone` and `error` is set.
+ */
+export type GitRepo_Serialize = {
+	path: string,
+	status?: GitStatus_Serialize | null,
+	/**  The path is missing or not a repo; in an event, it left the scope. */
+	gone?: boolean,
+	/**  git ran and failed, in its own words. */
+	error?: string | null,
+};
+
+export type GitRev = "head" | "index" | 
+/**  Any rev this build does not know, from a newer peer. */
+"unknown";
+
+/**
+ *  `git.show`: `path` is relative to `repo`. A blob missing at `rev`, or a
+ *  `repo` that is not a repo, gets `NOT_FOUND`. Replies with a [`Blob`](crate::fs::Blob).
+ */
+export type GitShowParams = GitShowParams_Serialize | GitShowParams_Deserialize;
+
+/**
+ *  `git.show`: `path` is relative to `repo`. A blob missing at `rev`, or a
+ *  `repo` that is not a repo, gets `NOT_FOUND`. Replies with a [`Blob`](crate::fs::Blob).
+ */
+export type GitShowParams_Deserialize = {
+	repo: string,
+	path: string,
+	rev: GitRev,
+	/**  Reply without `data` past this size; capped at [`READ_LIMIT`](crate::fs::READ_LIMIT), its default. */
+	maxBytes?: number | null,
+};
+
+/**
+ *  `git.show`: `path` is relative to `repo`. A blob missing at `rev`, or a
+ *  `repo` that is not a repo, gets `NOT_FOUND`. Replies with a [`Blob`](crate::fs::Blob).
+ */
+export type GitShowParams_Serialize = {
+	repo: string,
+	path: string,
+	rev: GitRev,
+	/**  Reply without `data` past this size; capped at [`READ_LIMIT`](crate::fs::READ_LIMIT), its default. */
+	maxBytes?: number | null,
+};
+
+export type GitStatus = GitStatus_Serialize | GitStatus_Deserialize;
+
+/**  `git.status`. */
+export type GitStatusParams = {
+	paths: string[],
+};
+
+export type GitStatusResult = GitStatusResult_Serialize | GitStatusResult_Deserialize;
+
+export type GitStatusResult_Deserialize = {
+	/**  One per requested path, in order. */
+	repos: GitRepo_Deserialize[],
+};
+
+export type GitStatusResult_Serialize = {
+	/**  One per requested path, in order. */
+	repos: GitRepo_Serialize[],
+};
+
+export type GitStatus_Deserialize = {
+	head: GitHead,
+	/**  Absent without an upstream, or when the upstream is gone. */
+	tracking?: GitTracking | null,
+	staged: GitChange_Deserialize[],
+	unstaged: GitChange_Deserialize[],
+	/**  Repo-relative paths. */
+	untracked: string[],
+};
+
+export type GitStatus_Serialize = {
+	head: GitHead,
+	/**  Absent without an upstream, or when the upstream is gone. */
+	tracking?: GitTracking | null,
+	staged: GitChange_Serialize[],
+	unstaged: GitChange_Serialize[],
+	/**  Repo-relative paths. */
+	untracked: string[],
+};
+
+export type GitTracking = {
+	ahead: number,
+	behind: number,
+};
+
 /**
  *  `protocolVersion` is the newest version the client speaks,
  *  `minProtocolVersion` the oldest.

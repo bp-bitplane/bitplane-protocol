@@ -12,6 +12,10 @@ use bitplane_protocol::{
         Blob, FsChanged, FsEntry, FsEntryKind, FsListResult, FsPathParams, FsReadParams,
         WatchParams,
     },
+    git::{
+        GitChange, GitChangeKind, GitHead, GitRepo, GitRev, GitShowParams, GitStatus,
+        GitStatusParams, GitStatusResult, GitTracking,
+    },
     rpc::Outcome,
     session::{
         AttachmentAckParams, AttachmentError, AttachmentOpenParams, AttachmentOpenResult,
@@ -73,7 +77,17 @@ pub fn typescript() -> String {
         .register::<FsReadParams>()
         .register::<Blob>()
         .register::<WatchParams>()
-        .register::<FsChanged>();
+        .register::<FsChanged>()
+        .register::<GitStatusParams>()
+        .register::<GitStatusResult>()
+        .register::<GitRepo>()
+        .register::<GitStatus>()
+        .register::<GitHead>()
+        .register::<GitTracking>()
+        .register::<GitChange>()
+        .register::<GitChangeKind>()
+        .register::<GitShowParams>()
+        .register::<GitRev>();
     specta_typescript::Typescript::default()
         .header("// Generated from the bitplane-protocol crate. Do not edit.")
         .export(&types, specta_serde::PhasesFormat)
@@ -110,6 +124,10 @@ pub fn json_schema() -> String {
     generator.subschema_for::<Blob>();
     generator.subschema_for::<WatchParams>();
     generator.subschema_for::<FsChanged>();
+    generator.subschema_for::<GitStatusParams>();
+    generator.subschema_for::<GitStatusResult>();
+    generator.subschema_for::<GitRepo>();
+    generator.subschema_for::<GitShowParams>();
     let schema = serde_json::json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "bitplane protocol",
