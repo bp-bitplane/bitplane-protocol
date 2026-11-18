@@ -4,6 +4,7 @@
 pub mod agent;
 pub mod error;
 pub mod frame;
+pub mod fs;
 pub mod hello;
 mod open_enum;
 pub mod rpc;
@@ -47,4 +48,11 @@ pub mod method {
     pub const AGENT_CHANGED: &str = "agent.changed";
     pub const AGENT_REMOVED: &str = "agent.removed";
     pub const AGENT_KIND_CHANGED: &str = "agent.kind.changed";
+
+    pub const FS_LIST: &str = "fs.list";
+    pub const FS_READ: &str = "fs.read";
+    pub const FS_WATCH: &str = "fs.watch";
+
+    /// Event, scoped to the connections watching the path.
+    pub const FS_CHANGED: &str = "fs.changed";
 }
