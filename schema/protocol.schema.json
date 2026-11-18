@@ -356,6 +356,27 @@
       ],
       "type": "object"
     },
+    "Blob": {
+      "description": "A raw blob: the reply to `fs.read` and `git.show`.",
+      "properties": {
+        "data": {
+          "description": "The bytes, base64 (standard alphabet, padded); absent past `maxBytes`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "size": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "size"
+      ],
+      "type": "object"
+    },
     "Capability": {
       "description": "One module of the daemon and whether this host can serve it; `reason`\nnames the fix when it cannot.",
       "properties": {
@@ -502,6 +523,106 @@
       },
       "required": [
         "code"
+      ],
+      "type": "object"
+    },
+    "FsChanged": {
+      "description": "The `fs.changed` event: the watched folder `path` changed, or with\n`gone` it cannot be watched and has left the scope.",
+      "properties": {
+        "gone": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "FsEntry": {
+      "properties": {
+        "ignored": {
+          "description": "Matched by the containing repo's ignore rules, or `.git` and\neverything in it.",
+          "type": "boolean"
+        },
+        "kind": {
+          "$ref": "#/$defs/FsEntryKind",
+          "description": "What the entry is once symlinks are followed."
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "ignored"
+      ],
+      "type": "object"
+    },
+    "FsEntryKind": {
+      "oneOf": [
+        {
+          "enum": [
+            "file",
+            "directory"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "unknown",
+          "description": "Any kind this build does not know, from a newer peer.",
+          "type": "string"
+        }
+      ]
+    },
+    "FsListResult": {
+      "properties": {
+        "entries": {
+          "description": "Sorted by name.",
+          "items": {
+            "$ref": "#/$defs/FsEntry"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "entries"
+      ],
+      "type": "object"
+    },
+    "FsPathParams": {
+      "description": "`fs.list`: a missing path gets `NOT_FOUND`.",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "FsReadParams": {
+      "description": "`fs.read`: a missing path or a folder gets `NOT_FOUND`.",
+      "properties": {
+        "maxBytes": {
+          "description": "Reply without `data` past this size; capped at [`READ_LIMIT`], its default.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
       ],
       "type": "object"
     },
@@ -1024,6 +1145,21 @@
           "type": "string"
         }
       ]
+    },
+    "WatchParams": {
+      "description": "`fs.watch` and `git.watch`: replaces this connection's scope of the\nmodule; `[]` stops. Only paths new to the scope get an initial event.",
+      "properties": {
+        "paths": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "paths"
+      ],
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",

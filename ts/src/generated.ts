@@ -190,6 +190,23 @@ export type AttachmentResizeParams = {
 	rows: number,
 };
 
+/**  A raw blob: the reply to `fs.read` and `git.show`. */
+export type Blob = Blob_Serialize | Blob_Deserialize;
+
+/**  A raw blob: the reply to `fs.read` and `git.show`. */
+export type Blob_Deserialize = {
+	size: number,
+	/**  The bytes, base64 (standard alphabet, padded); absent past `maxBytes`. */
+	data?: string | null,
+};
+
+/**  A raw blob: the reply to `fs.read` and `git.show`. */
+export type Blob_Serialize = {
+	size: number,
+	/**  The bytes, base64 (standard alphabet, padded); absent past `maxBytes`. */
+	data?: string | null,
+};
+
 /**
  *  One module of the daemon and whether this host can serve it; `reason`
  *  names the fix when it cannot.
@@ -285,6 +302,72 @@ export type ErrorData_Deserialize = {
 export type ErrorData_Serialize = {
 	code: ErrorCode,
 	detail?: unknown | null,
+};
+
+/**
+ *  The `fs.changed` event: the watched folder `path` changed, or with
+ *  `gone` it cannot be watched and has left the scope.
+ */
+export type FsChanged = FsChanged_Serialize | FsChanged_Deserialize;
+
+/**
+ *  The `fs.changed` event: the watched folder `path` changed, or with
+ *  `gone` it cannot be watched and has left the scope.
+ */
+export type FsChanged_Deserialize = {
+	path: string,
+	gone?: boolean,
+};
+
+/**
+ *  The `fs.changed` event: the watched folder `path` changed, or with
+ *  `gone` it cannot be watched and has left the scope.
+ */
+export type FsChanged_Serialize = {
+	path: string,
+	gone?: boolean,
+};
+
+export type FsEntry = {
+	name: string,
+	/**  What the entry is once symlinks are followed. */
+	kind: FsEntryKind,
+	/**
+	 *  Matched by the containing repo's ignore rules, or `.git` and
+	 *  everything in it.
+	 */
+	ignored: boolean,
+};
+
+export type FsEntryKind = "file" | "directory" | 
+/**  Any kind this build does not know, from a newer peer. */
+"unknown";
+
+export type FsListResult = {
+	/**  Sorted by name. */
+	entries: FsEntry[],
+};
+
+/**  `fs.list`: a missing path gets `NOT_FOUND`. */
+export type FsPathParams = {
+	path: string,
+};
+
+/**  `fs.read`: a missing path or a folder gets `NOT_FOUND`. */
+export type FsReadParams = FsReadParams_Serialize | FsReadParams_Deserialize;
+
+/**  `fs.read`: a missing path or a folder gets `NOT_FOUND`. */
+export type FsReadParams_Deserialize = {
+	path: string,
+	/**  Reply without `data` past this size; capped at [`READ_LIMIT`], its default. */
+	maxBytes?: number | null,
+};
+
+/**  `fs.read`: a missing path or a folder gets `NOT_FOUND`. */
+export type FsReadParams_Serialize = {
+	path: string,
+	/**  Reply without `data` past this size; capped at [`READ_LIMIT`], its default. */
+	maxBytes?: number | null,
 };
 
 /**
@@ -639,3 +722,11 @@ export type Tracking = "hooks" | "poll" |
 export type WaitingReason = "permission" | "input" | "other" | 
 /**  Any reason this build does not know, from a newer peer. */
 "unknown";
+
+/**
+ *  `fs.watch` and `git.watch`: replaces this connection's scope of the
+ *  module; `[]` stops. Only paths new to the scope get an initial event.
+ */
+export type WatchParams = {
+	paths: string[],
+};

@@ -8,6 +8,10 @@ use bitplane_protocol::{
         Agent, AgentError, AgentKindStatus, AgentListResult, AgentRef, AgentResult, AgentState,
         Tracking, WaitingReason,
     },
+    fs::{
+        Blob, FsChanged, FsEntry, FsEntryKind, FsListResult, FsPathParams, FsReadParams,
+        WatchParams,
+    },
     rpc::Outcome,
     session::{
         AttachmentAckParams, AttachmentError, AttachmentOpenParams, AttachmentOpenResult,
@@ -61,7 +65,15 @@ pub fn typescript() -> String {
         .register::<AgentListResult>()
         .register::<AgentKindStatus>()
         .register::<AgentResult>()
-        .register::<AgentRef>();
+        .register::<AgentRef>()
+        .register::<FsPathParams>()
+        .register::<FsListResult>()
+        .register::<FsEntry>()
+        .register::<FsEntryKind>()
+        .register::<FsReadParams>()
+        .register::<Blob>()
+        .register::<WatchParams>()
+        .register::<FsChanged>();
     specta_typescript::Typescript::default()
         .header("// Generated from the bitplane-protocol crate. Do not edit.")
         .export(&types, specta_serde::PhasesFormat)
@@ -92,6 +104,12 @@ pub fn json_schema() -> String {
     generator.subschema_for::<AgentResult>();
     generator.subschema_for::<AgentRef>();
     generator.subschema_for::<AgentKindStatus>();
+    generator.subschema_for::<FsPathParams>();
+    generator.subschema_for::<FsListResult>();
+    generator.subschema_for::<FsReadParams>();
+    generator.subschema_for::<Blob>();
+    generator.subschema_for::<WatchParams>();
+    generator.subschema_for::<FsChanged>();
     let schema = serde_json::json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "bitplane protocol",
