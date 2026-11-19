@@ -306,6 +306,10 @@ export type ErrorCode =
 "PLANE_EXISTS" | 
 /**  `bp` ran and refused; `detail` is its error envelope verbatim. */
 "BP_REFUSED" | 
+/**  No such job: never started, dismissed, or auto-dismissed. */
+"UNKNOWN_JOB" | 
+/**  `job.cancel` on a job that already finished. */
+"JOB_FINISHED" | 
 /**  Any code this build does not know, from a newer peer. */
 "UNKNOWN";
 
@@ -570,6 +574,170 @@ export type HelloResult_Serialize = {
 
 export type Id = number | string;
 
+/**  The reply's entries to `job.list`, and the `job.changed` event's. */
+export type Job = Job_Serialize | Job_Deserialize;
+
+/**  The `job.changed` event, broadcast. */
+export type JobChanged = JobChanged_Serialize | JobChanged_Deserialize;
+
+/**  The `job.changed` event, broadcast. */
+export type JobChanged_Deserialize = {
+	job: Job_Deserialize,
+};
+
+/**  The `job.changed` event, broadcast. */
+export type JobChanged_Serialize = {
+	job: Job_Serialize,
+};
+
+/**  Who started a job: the `hello` client's name and version. */
+export type JobClient = {
+	name: string,
+	version: string,
+};
+
+export type JobKind = 
+/**  Started by `plane.create`. */
+"plane.create" | 
+/**  Any kind this build does not know, from a newer peer. */
+"unknown";
+
+/**
+ *  The reply to `job.list`: running jobs and finished ones not yet
+ *  dismissed, oldest first.
+ */
+export type JobListResult = JobListResult_Serialize | JobListResult_Deserialize;
+
+/**
+ *  The reply to `job.list`: running jobs and finished ones not yet
+ *  dismissed, oldest first.
+ */
+export type JobListResult_Deserialize = {
+	jobs: Job_Deserialize[],
+};
+
+/**
+ *  The reply to `job.list`: running jobs and finished ones not yet
+ *  dismissed, oldest first.
+ */
+export type JobListResult_Serialize = {
+	jobs: Job_Serialize[],
+};
+
+/**
+ *  The `job.log` event, sent only to connections watching the job. For
+ *  `plane.create` each line is `bp`'s stderr verbatim, without its newline.
+ */
+export type JobLog = JobLog_Serialize | JobLog_Deserialize;
+
+/**
+ *  The `job.log` event, sent only to connections watching the job. For
+ *  `plane.create` each line is `bp`'s stderr verbatim, without its newline.
+ */
+export type JobLog_Deserialize = {
+	job: string,
+	lines: string[],
+	/**  On a backlog only: how many earlier lines the capped log evicted. */
+	dropped?: number | null,
+};
+
+/**
+ *  The `job.log` event, sent only to connections watching the job. For
+ *  `plane.create` each line is `bp`'s stderr verbatim, without its newline.
+ */
+export type JobLog_Serialize = {
+	job: string,
+	lines: string[],
+	/**  On a backlog only: how many earlier lines the capped log evicted. */
+	dropped?: number | null,
+};
+
+/**
+ *  For `plane.create`, the furthest step any member has started, from
+ *  `bp`'s progress events: fetch, worktree, script.
+ */
+export type JobPhase = "fetching" | "addingWorktrees" | "runningScripts" | 
+/**  Any phase this build does not know, from a newer peer. */
+"unknown";
+
+/**
+ *  Names one job: `job.cancel` and `job.dismiss`, and the `job.removed`
+ *  event. `UNKNOWN_JOB` for a job the daemon does not have; `job.cancel`
+ *  on a finished job gets `JOB_FINISHED`, `job.dismiss` on a running one
+ *  `INVALID_REQUEST`.
+ */
+export type JobRef = {
+	job: string,
+};
+
+/**
+ *  Every state but `running` is final. For `plane.create` it is `bp`'s
+ *  answer, never what the disk looks like.
+ */
+export type JobStatus = { state: "running" } | { state: "succeeded" } | 
+/**  The plane was built and a script it ran failed. */
+{ state: "scriptFailed" } | 
+/**  `bp` left nothing behind: it refused, or unwound everything. */
+{ state: "nothingCreated" } | 
+/**  `bp` could not take back all it made; the plane is a remnant. */
+{ state: "partial" } | 
+/**
+ *  The work ended without an answer: `bp` could not be run, died, or
+ *  the daemon restarted under it (`reason` is then `daemon restarted`).
+ */
+{ state: "failed"; reason: string } | 
+/**  Any state this build does not know, from a newer peer. */
+{ state: "unknown" };
+
+/**
+ *  `job.watch`: replaces this connection's log scope; `[]` stops. Each job
+ *  new to the scope gets its backlog as one `job.log`, then live lines
+ *  while it runs. A job the daemon does not have gets `job.removed` at once.
+ */
+export type JobWatchParams = {
+	jobs: string[],
+};
+
+/**  The reply's entries to `job.list`, and the `job.changed` event's. */
+export type Job_Deserialize = {
+	id: string,
+	kind: JobKind,
+	status: JobStatus,
+	/**  The furthest step the work has started; absent until it reports one. */
+	phase?: JobPhase | null,
+	/**  The `hello` client of the connection that started it, for display. */
+	startedBy: JobClient,
+	/**  Unix milliseconds. */
+	startedAt: number,
+	/**  Unix milliseconds; set once `status` is no longer `running`. */
+	finishedAt?: number | null,
+	/**
+	 *  The kind's own: `plane.create`'s is a
+	 *  [`PlaneCreateDetail`](crate::plane::PlaneCreateDetail).
+	 */
+	detail: unknown,
+};
+
+/**  The reply's entries to `job.list`, and the `job.changed` event's. */
+export type Job_Serialize = {
+	id: string,
+	kind: JobKind,
+	status: JobStatus,
+	/**  The furthest step the work has started; absent until it reports one. */
+	phase?: JobPhase | null,
+	/**  The `hello` client of the connection that started it, for display. */
+	startedBy: JobClient,
+	/**  Unix milliseconds. */
+	startedAt: number,
+	/**  Unix milliseconds; set once `status` is no longer `running`. */
+	finishedAt?: number | null,
+	/**
+	 *  The kind's own: `plane.create`'s is a
+	 *  [`PlaneCreateDetail`](crate::plane::PlaneCreateDetail).
+	 */
+	detail: unknown,
+};
+
 export type Notification = Notification_Serialize | Notification_Deserialize;
 
 export type Notification_Deserialize = {
@@ -590,6 +758,33 @@ export type Outcome_Deserialize = ({ result: unknown }) & { error?: never } | ({
 
 export type Outcome_Serialize = ({ result: unknown }) & { error?: never } | ({ error: RpcError_Serialize }) & { result?: never };
 
+/**  A `plane.create` job's `detail`. */
+export type PlaneCreateDetail = PlaneCreateDetail_Serialize | PlaneCreateDetail_Deserialize;
+
+/**  A `plane.create` job's `detail`. */
+export type PlaneCreateDetail_Deserialize = {
+	/**  The plane id: the request's, or once `bp` answers, its own. */
+	plane?: string | null,
+	/**  Absolute; known once `bp` answers with a `Response`. */
+	directory?: string | null,
+	/**  `bp`'s `Response`, when it answered with one (an interrupted run too). */
+	response?: unknown | null,
+	/**  `bp`'s error envelope, when it refused. */
+	envelope?: unknown | null,
+};
+
+/**  A `plane.create` job's `detail`. */
+export type PlaneCreateDetail_Serialize = {
+	/**  The plane id: the request's, or once `bp` answers, its own. */
+	plane?: string | null,
+	/**  Absolute; known once `bp` answers with a `Response`. */
+	directory?: string | null,
+	/**  `bp`'s `Response`, when it answered with one (an interrupted run too). */
+	response?: unknown | null,
+	/**  `bp`'s error envelope, when it refused. */
+	envelope?: unknown | null,
+};
+
 /**
  *  `plane.createDraft`: makes `<planesDir>/<id>`, and the planes directory
  *  if needed. An id `bp` would refuse gets `INVALID_PARAMS`, an existing
@@ -597,6 +792,22 @@ export type Outcome_Serialize = ({ result: unknown }) & { error?: never } | ({ e
  */
 export type PlaneCreateDraftParams = {
 	id: string,
+};
+
+/**
+ *  `plane.create`: starts a job of kind `plane.create`, which runs
+ *  `bp --stdin --json --progress-fd 3` with `args` as its request.
+ */
+export type PlaneCreateParams = {
+	/**
+	 *  `bp`'s `PlaneCreateRequest`, opaque; the daemon tags it with
+	 *  `"action": "plane_create"`. Not an object gets `INVALID_PARAMS`.
+	 */
+	args: unknown,
+};
+
+export type PlaneCreateResult = {
+	job: string,
 };
 
 /**  `plane.dispatch`: one `bp` `Request`, run as `bp --stdin --json`. */

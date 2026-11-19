@@ -53,6 +53,10 @@ pub enum ErrorCode {
     PlaneExists,
     /// `bp` ran and refused; `detail` is its error envelope verbatim.
     BpRefused,
+    /// No such job: never started, dismissed, or auto-dismissed.
+    UnknownJob,
+    /// `job.cancel` on a job that already finished.
+    JobFinished,
     /// Any code this build does not know, from a newer peer.
     Unknown,
 }
@@ -73,6 +77,8 @@ crate::open_enum::deserialize_as_unknown!(
         AgentLive,
         PlaneExists,
         BpRefused,
+        UnknownJob,
+        JobFinished,
     ]
 );
 
