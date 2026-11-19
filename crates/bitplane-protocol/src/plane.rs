@@ -6,6 +6,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::job::JobId;
+
 /// The `plane` capability's `info` in `hello`: what `bp --version --json`
 /// answered at startup.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -151,4 +153,44 @@ pub struct PlaneDispatchParams {
 pub struct PlaneDispatchResult {
     #[cfg_attr(feature = "specta", specta(type = specta_typescript::Unknown))]
     pub response: Value,
+}
+
+/// `plane.create`: starts a job of kind `plane.create`, which runs
+/// `bp --stdin --json --progress-fd 3` with `args` as its request.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct PlaneCreateParams {
+    /// `bp`'s `PlaneCreateRequest`, opaque; the daemon tags it with
+    /// `"action": "plane_create"`. Not an object gets `INVALID_PARAMS`.
+    #[cfg_attr(feature = "specta", specta(type = specta_typescript::Unknown))]
+    pub args: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct PlaneCreateResult {
+    pub job: JobId,
+}
+
+/// A `plane.create` job's `detail`.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct PlaneCreateDetail {
+    /// The plane id: the request's, or once `bp` answers, its own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plane: Option<String>,
+    /// Absolute; known once `bp` answers with a `Response`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub directory: Option<String>,
+    /// `bp`'s `Response`, when it answered with one (an interrupted run too).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "specta", specta(type = Option<specta_typescript::Unknown>))]
+    pub response: Option<Value>,
+    /// `bp`'s error envelope, when it refused.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "specta", specta(type = Option<specta_typescript::Unknown>))]
+    pub envelope: Option<Value>,
 }

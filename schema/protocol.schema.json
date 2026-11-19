@@ -537,6 +537,16 @@
           "type": "string"
         },
         {
+          "const": "UNKNOWN_JOB",
+          "description": "No such job: never started, dismissed, or auto-dismissed.",
+          "type": "string"
+        },
+        {
+          "const": "JOB_FINISHED",
+          "description": "`job.cancel` on a job that already finished.",
+          "type": "string"
+        },
+        {
           "const": "UNKNOWN",
           "description": "Any code this build does not know, from a newer peer.",
           "type": "string"
@@ -980,6 +990,290 @@
         }
       ]
     },
+    "Job": {
+      "description": "The reply's entries to `job.list`, and the `job.changed` event's.",
+      "properties": {
+        "detail": {
+          "description": "The kind's own: `plane.create`'s is a\n[`PlaneCreateDetail`](crate::plane::PlaneCreateDetail)."
+        },
+        "finishedAt": {
+          "description": "Unix milliseconds; set once `status` is no longer `running`.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/JobKind"
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JobPhase"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The furthest step the work has started; absent until it reports one."
+        },
+        "startedAt": {
+          "description": "Unix milliseconds.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "startedBy": {
+          "$ref": "#/$defs/JobClient",
+          "description": "The `hello` client of the connection that started it, for display."
+        },
+        "status": {
+          "$ref": "#/$defs/JobStatus"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "status",
+        "startedBy",
+        "startedAt",
+        "detail"
+      ],
+      "type": "object"
+    },
+    "JobChanged": {
+      "description": "The `job.changed` event, broadcast.",
+      "properties": {
+        "job": {
+          "$ref": "#/$defs/Job"
+        }
+      },
+      "required": [
+        "job"
+      ],
+      "type": "object"
+    },
+    "JobClient": {
+      "description": "Who started a job: the `hello` client's name and version.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "JobKind": {
+      "oneOf": [
+        {
+          "const": "plane.create",
+          "description": "Started by `plane.create`.",
+          "type": "string"
+        },
+        {
+          "const": "unknown",
+          "description": "Any kind this build does not know, from a newer peer.",
+          "type": "string"
+        }
+      ]
+    },
+    "JobListResult": {
+      "description": "The reply to `job.list`: running jobs and finished ones not yet\ndismissed, oldest first.",
+      "properties": {
+        "jobs": {
+          "items": {
+            "$ref": "#/$defs/Job"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "jobs"
+      ],
+      "type": "object"
+    },
+    "JobLog": {
+      "description": "The `job.log` event, sent only to connections watching the job. For\n`plane.create` each line is `bp`'s stderr verbatim, without its newline.",
+      "properties": {
+        "dropped": {
+          "description": "On a backlog only: how many earlier lines the capped log evicted.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "job": {
+          "type": "string"
+        },
+        "lines": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "job",
+        "lines"
+      ],
+      "type": "object"
+    },
+    "JobPhase": {
+      "description": "For `plane.create`, the furthest step any member has started, from\n`bp`'s progress events: fetch, worktree, script.",
+      "oneOf": [
+        {
+          "enum": [
+            "fetching",
+            "addingWorktrees",
+            "runningScripts"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "unknown",
+          "description": "Any phase this build does not know, from a newer peer.",
+          "type": "string"
+        }
+      ]
+    },
+    "JobRef": {
+      "description": "Names one job: `job.cancel` and `job.dismiss`, and the `job.removed`\nevent. `UNKNOWN_JOB` for a job the daemon does not have; `job.cancel`\non a finished job gets `JOB_FINISHED`, `job.dismiss` on a running one\n`INVALID_REQUEST`.",
+      "properties": {
+        "job": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "job"
+      ],
+      "type": "object"
+    },
+    "JobStatus": {
+      "description": "Every state but `running` is final. For `plane.create` it is `bp`'s\nanswer, never what the disk looks like.",
+      "oneOf": [
+        {
+          "properties": {
+            "state": {
+              "const": "running",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "succeeded",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The plane was built and a script it ran failed.",
+          "properties": {
+            "state": {
+              "const": "scriptFailed",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "`bp` left nothing behind: it refused, or unwound everything.",
+          "properties": {
+            "state": {
+              "const": "nothingCreated",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "`bp` could not take back all it made; the plane is a remnant.",
+          "properties": {
+            "state": {
+              "const": "partial",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The work ended without an answer: `bp` could not be run, died, or\nthe daemon restarted under it (`reason` is then `daemon restarted`).",
+          "properties": {
+            "reason": {
+              "type": "string"
+            },
+            "state": {
+              "const": "failed",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "reason"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Any state this build does not know, from a newer peer.",
+          "properties": {
+            "state": {
+              "const": "unknown",
+              "type": "string"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "JobWatchParams": {
+      "description": "`job.watch`: replaces this connection's log scope; `[]` stops. Each job\nnew to the scope gets its backlog as one `job.log`, then live lines\nwhile it runs. A job the daemon does not have gets `job.removed` at once.",
+      "properties": {
+        "jobs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "jobs"
+      ],
+      "type": "object"
+    },
     "Notification": {
       "properties": {
         "jsonrpc": {
@@ -996,6 +1290,32 @@
       ],
       "type": "object"
     },
+    "PlaneCreateDetail": {
+      "description": "A `plane.create` job's `detail`.",
+      "properties": {
+        "directory": {
+          "description": "Absolute; known once `bp` answers with a `Response`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "envelope": {
+          "description": "`bp`'s error envelope, when it refused."
+        },
+        "plane": {
+          "description": "The plane id: the request's, or once `bp` answers, its own.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "response": {
+          "description": "`bp`'s `Response`, when it answered with one (an interrupted run too)."
+        }
+      },
+      "type": "object"
+    },
     "PlaneCreateDraftParams": {
       "description": "`plane.createDraft`: makes `<planesDir>/<id>`, and the planes directory\nif needed. An id `bp` would refuse gets `INVALID_PARAMS`, an existing\nentry `PLANE_EXISTS`. A `plane.changed` follows.",
       "properties": {
@@ -1005,6 +1325,29 @@
       },
       "required": [
         "id"
+      ],
+      "type": "object"
+    },
+    "PlaneCreateParams": {
+      "description": "`plane.create`: starts a job of kind `plane.create`, which runs\n`bp --stdin --json --progress-fd 3` with `args` as its request.",
+      "properties": {
+        "args": {
+          "description": "`bp`'s `PlaneCreateRequest`, opaque; the daemon tags it with\n`\"action\": \"plane_create\"`. Not an object gets `INVALID_PARAMS`."
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "type": "object"
+    },
+    "PlaneCreateResult": {
+      "properties": {
+        "job": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "job"
       ],
       "type": "object"
     },
