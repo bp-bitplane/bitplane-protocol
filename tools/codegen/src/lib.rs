@@ -16,6 +16,11 @@ use bitplane_protocol::{
         GitChange, GitChangeKind, GitHead, GitRepo, GitRev, GitShowParams, GitStatus,
         GitStatusParams, GitStatusResult, GitTracking,
     },
+    plane::{
+        BpVersion, PlaneCreateDraftParams, PlaneDispatchParams, PlaneDispatchResult, PlaneInfo,
+        PlaneKind, PlaneListError, PlaneMember, PlaneProjectsResult, PlaneRow, PlanesModel,
+        Project,
+    },
     rpc::Outcome,
     session::{
         AttachmentAckParams, AttachmentError, AttachmentOpenParams, AttachmentOpenResult,
@@ -87,7 +92,19 @@ pub fn typescript() -> String {
         .register::<GitChange>()
         .register::<GitChangeKind>()
         .register::<GitShowParams>()
-        .register::<GitRev>();
+        .register::<GitRev>()
+        .register::<PlaneInfo>()
+        .register::<BpVersion>()
+        .register::<PlanesModel>()
+        .register::<PlaneListError>()
+        .register::<PlaneRow>()
+        .register::<PlaneMember>()
+        .register::<PlaneKind>()
+        .register::<PlaneProjectsResult>()
+        .register::<Project>()
+        .register::<PlaneCreateDraftParams>()
+        .register::<PlaneDispatchParams>()
+        .register::<PlaneDispatchResult>();
     specta_typescript::Typescript::default()
         .header("// Generated from the bitplane-protocol crate. Do not edit.")
         .export(&types, specta_serde::PhasesFormat)
@@ -128,6 +145,12 @@ pub fn json_schema() -> String {
     generator.subschema_for::<GitStatusResult>();
     generator.subschema_for::<GitRepo>();
     generator.subschema_for::<GitShowParams>();
+    generator.subschema_for::<PlaneInfo>();
+    generator.subschema_for::<PlanesModel>();
+    generator.subschema_for::<PlaneProjectsResult>();
+    generator.subschema_for::<PlaneCreateDraftParams>();
+    generator.subschema_for::<PlaneDispatchParams>();
+    generator.subschema_for::<PlaneDispatchResult>();
     let schema = serde_json::json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "bitplane protocol",

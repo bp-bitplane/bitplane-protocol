@@ -207,15 +207,27 @@ export type Blob_Serialize = {
 	data?: string | null,
 };
 
+export type BpVersion = {
+	/**  The binary's own version. */
+	version: string,
+	/**
+	 *  The version of `bp`'s wire: its requests, responses, envelope and
+	 *  progress events.
+	 */
+	contract: number,
+};
+
 /**
  *  One module of the daemon and whether this host can serve it; `reason`
- *  names the fix when it cannot.
+ *  names the fix when it cannot. `info` is the module's own: `plane`'s is a
+ *  [`PlaneInfo`](crate::plane::PlaneInfo).
  */
 export type Capability = Capability_Serialize | Capability_Deserialize;
 
 /**
  *  One module of the daemon and whether this host can serve it; `reason`
- *  names the fix when it cannot.
+ *  names the fix when it cannot. `info` is the module's own: `plane`'s is a
+ *  [`PlaneInfo`](crate::plane::PlaneInfo).
  */
 export type Capability_Deserialize = {
 	module: string,
@@ -226,7 +238,8 @@ export type Capability_Deserialize = {
 
 /**
  *  One module of the daemon and whether this host can serve it; `reason`
- *  names the fix when it cannot.
+ *  names the fix when it cannot. `info` is the module's own: `plane`'s is a
+ *  [`PlaneInfo`](crate::plane::PlaneInfo).
  */
 export type Capability_Serialize = {
 	module: string,
@@ -289,6 +302,10 @@ export type ErrorCode =
  *  resuming in another session.
  */
 "AGENT_LIVE" | 
+/**  `plane.createDraft` names an entry already in the planes directory. */
+"PLANE_EXISTS" | 
+/**  `bp` ran and refused; `detail` is its error envelope verbatim. */
+"BP_REFUSED" | 
 /**  Any code this build does not know, from a newer peer. */
 "UNKNOWN";
 
@@ -572,6 +589,146 @@ export type Outcome = Outcome_Serialize | Outcome_Deserialize;
 export type Outcome_Deserialize = ({ result: unknown }) & { error?: never } | ({ error: RpcError_Deserialize }) & { result?: never };
 
 export type Outcome_Serialize = ({ result: unknown }) & { error?: never } | ({ error: RpcError_Serialize }) & { result?: never };
+
+/**
+ *  `plane.createDraft`: makes `<planesDir>/<id>`, and the planes directory
+ *  if needed. An id `bp` would refuse gets `INVALID_PARAMS`, an existing
+ *  entry `PLANE_EXISTS`. A `plane.changed` follows.
+ */
+export type PlaneCreateDraftParams = {
+	id: string,
+};
+
+/**  `plane.dispatch`: one `bp` `Request`, run as `bp --stdin --json`. */
+export type PlaneDispatchParams = {
+	request: unknown,
+};
+
+/**
+ *  `bp`'s `Response`, from an exit of `0` or `3`. Any other exit with an
+ *  error envelope is `BP_REFUSED`; anything else is an internal error naming
+ *  the cause.
+ */
+export type PlaneDispatchResult = {
+	response: unknown,
+};
+
+/**
+ *  The `plane` capability's `info` in `hello`: what `bp --version --json`
+ *  answered at startup.
+ */
+export type PlaneInfo = {
+	bp: BpVersion,
+};
+
+export type PlaneKind = 
+/**  A directory holding `plane.toml`, as `bp list` reports it. */
+"plane" | 
+/**  A directory in the planes directory without `plane.toml`. */
+"draft" | 
+/**
+ *  A plane or draft this daemon listed that has since vanished; the only
+ *  gone-plane signal. It stays until the daemon restarts or the id is
+ *  back.
+ */
+"gone" | 
+/**  Any kind this build does not know, from a newer peer. */
+"unknown";
+
+export type PlaneListError = PlaneListError_Serialize | PlaneListError_Deserialize;
+
+export type PlaneListError_Deserialize = {
+	message: string,
+	/**
+	 *  `bp`'s error envelope when it refused, as with `BP_REFUSED`; absent
+	 *  when `bp` could not be run.
+	 */
+	envelope?: unknown | null,
+};
+
+export type PlaneListError_Serialize = {
+	message: string,
+	/**
+	 *  `bp`'s error envelope when it refused, as with `BP_REFUSED`; absent
+	 *  when `bp` could not be run.
+	 */
+	envelope?: unknown | null,
+};
+
+export type PlaneMember = {
+	/**  `@project` or a repo path, as `bp create` takes it. */
+	member: string,
+	/**  The member's worktree, absolute: what `git.*` takes. */
+	path: string,
+};
+
+/**  The reply to `plane.projects`: `bp project list`, sorted by name. */
+export type PlaneProjectsResult = {
+	projects: Project[],
+};
+
+/**  One sidebar row. */
+export type PlaneRow = {
+	/**  The plane directory's name. */
+	id: string,
+	/**  Absolute. */
+	directory: string,
+	kind: PlaneKind,
+	/**  In plane file order; empty unless `kind` is `plane`. */
+	members: PlaneMember[],
+	/**
+	 *  `bp list`'s finding tags, such as `member_worktree_missing`; empty
+	 *  unless `kind` is `plane`.
+	 */
+	findings: string[],
+};
+
+/**
+ *  The reply to `plane.list` and the `plane.changed` event: every plane and
+ *  draft in the planes directory, sorted by id.
+ */
+export type PlanesModel = PlanesModel_Serialize | PlanesModel_Deserialize;
+
+/**
+ *  The reply to `plane.list` and the `plane.changed` event: every plane and
+ *  draft in the planes directory, sorted by id.
+ */
+export type PlanesModel_Deserialize = {
+	planesDir: string,
+	planesDirExists: boolean,
+	/**
+	 *  When `bp list` last answered, in Unix milliseconds; absent until it
+	 *  first has, and a `plane.changed` follows.
+	 */
+	refreshedAt?: number | null,
+	/**  The last `bp list` failed; `planes` keeps what the one before found. */
+	listError?: PlaneListError_Deserialize | null,
+	planes: PlaneRow[],
+};
+
+/**
+ *  The reply to `plane.list` and the `plane.changed` event: every plane and
+ *  draft in the planes directory, sorted by id.
+ */
+export type PlanesModel_Serialize = {
+	planesDir: string,
+	planesDirExists: boolean,
+	/**
+	 *  When `bp list` last answered, in Unix milliseconds; absent until it
+	 *  first has, and a `plane.changed` follows.
+	 */
+	refreshedAt?: number | null,
+	/**  The last `bp list` failed; `planes` keeps what the one before found. */
+	listError?: PlaneListError_Serialize | null,
+	planes: PlaneRow[],
+};
+
+export type Project = {
+	/**  Without the `@`. */
+	name: string,
+	/**  `false` also for a project whose `project.toml` did not parse. */
+	sourceRepoPresent: boolean,
+};
 
 export type Request = Request_Serialize | Request_Deserialize;
 

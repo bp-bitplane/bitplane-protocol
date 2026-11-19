@@ -49,6 +49,10 @@ pub enum ErrorCode {
     /// `session.open { agent: { resume } }` names an agent session already running or
     /// resuming in another session.
     AgentLive,
+    /// `plane.createDraft` names an entry already in the planes directory.
+    PlaneExists,
+    /// `bp` ran and refused; `detail` is its error envelope verbatim.
+    BpRefused,
     /// Any code this build does not know, from a newer peer.
     Unknown,
 }
@@ -67,6 +71,8 @@ crate::open_enum::deserialize_as_unknown!(
         RootGone,
         NotFound,
         AgentLive,
+        PlaneExists,
+        BpRefused,
     ]
 );
 

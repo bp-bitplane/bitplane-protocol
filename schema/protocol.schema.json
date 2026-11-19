@@ -377,8 +377,27 @@
       ],
       "type": "object"
     },
+    "BpVersion": {
+      "properties": {
+        "contract": {
+          "description": "The version of `bp`'s wire: its requests, responses, envelope and\nprogress events.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "version": {
+          "description": "The binary's own version.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "contract"
+      ],
+      "type": "object"
+    },
     "Capability": {
-      "description": "One module of the daemon and whether this host can serve it; `reason`\nnames the fix when it cannot.",
+      "description": "One module of the daemon and whether this host can serve it; `reason`\nnames the fix when it cannot. `info` is the module's own: `plane`'s is a\n[`PlaneInfo`](crate::plane::PlaneInfo).",
       "properties": {
         "available": {
           "type": "boolean"
@@ -505,6 +524,16 @@
         {
           "const": "AGENT_LIVE",
           "description": "`session.open { agent: { resume } }` names an agent session already running or\nresuming in another session.",
+          "type": "string"
+        },
+        {
+          "const": "PLANE_EXISTS",
+          "description": "`plane.createDraft` names an entry already in the planes directory.",
+          "type": "string"
+        },
+        {
+          "const": "BP_REFUSED",
+          "description": "`bp` ran and refused; `detail` is its error envelope verbatim.",
           "type": "string"
         },
         {
@@ -964,6 +993,218 @@
       "required": [
         "jsonrpc",
         "method"
+      ],
+      "type": "object"
+    },
+    "PlaneCreateDraftParams": {
+      "description": "`plane.createDraft`: makes `<planesDir>/<id>`, and the planes directory\nif needed. An id `bp` would refuse gets `INVALID_PARAMS`, an existing\nentry `PLANE_EXISTS`. A `plane.changed` follows.",
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "PlaneDispatchParams": {
+      "description": "`plane.dispatch`: one `bp` `Request`, run as `bp --stdin --json`.",
+      "properties": {
+        "request": true
+      },
+      "required": [
+        "request"
+      ],
+      "type": "object"
+    },
+    "PlaneDispatchResult": {
+      "description": "`bp`'s `Response`, from an exit of `0` or `3`. Any other exit with an\nerror envelope is `BP_REFUSED`; anything else is an internal error naming\nthe cause.",
+      "properties": {
+        "response": true
+      },
+      "required": [
+        "response"
+      ],
+      "type": "object"
+    },
+    "PlaneInfo": {
+      "description": "The `plane` capability's `info` in `hello`: what `bp --version --json`\nanswered at startup.",
+      "properties": {
+        "bp": {
+          "$ref": "#/$defs/BpVersion"
+        }
+      },
+      "required": [
+        "bp"
+      ],
+      "type": "object"
+    },
+    "PlaneKind": {
+      "oneOf": [
+        {
+          "const": "plane",
+          "description": "A directory holding `plane.toml`, as `bp list` reports it.",
+          "type": "string"
+        },
+        {
+          "const": "draft",
+          "description": "A directory in the planes directory without `plane.toml`.",
+          "type": "string"
+        },
+        {
+          "const": "gone",
+          "description": "A plane or draft this daemon listed that has since vanished; the only\ngone-plane signal. It stays until the daemon restarts or the id is\nback.",
+          "type": "string"
+        },
+        {
+          "const": "unknown",
+          "description": "Any kind this build does not know, from a newer peer.",
+          "type": "string"
+        }
+      ]
+    },
+    "PlaneListError": {
+      "properties": {
+        "envelope": {
+          "description": "`bp`'s error envelope when it refused, as with `BP_REFUSED`; absent\nwhen `bp` could not be run."
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "type": "object"
+    },
+    "PlaneMember": {
+      "properties": {
+        "member": {
+          "description": "`@project` or a repo path, as `bp create` takes it.",
+          "type": "string"
+        },
+        "path": {
+          "description": "The member's worktree, absolute: what `git.*` takes.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "member",
+        "path"
+      ],
+      "type": "object"
+    },
+    "PlaneProjectsResult": {
+      "description": "The reply to `plane.projects`: `bp project list`, sorted by name.",
+      "properties": {
+        "projects": {
+          "items": {
+            "$ref": "#/$defs/Project"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "projects"
+      ],
+      "type": "object"
+    },
+    "PlaneRow": {
+      "description": "One sidebar row.",
+      "properties": {
+        "directory": {
+          "description": "Absolute.",
+          "type": "string"
+        },
+        "findings": {
+          "description": "`bp list`'s finding tags, such as `member_worktree_missing`; empty\nunless `kind` is `plane`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "The plane directory's name.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/PlaneKind"
+        },
+        "members": {
+          "description": "In plane file order; empty unless `kind` is `plane`.",
+          "items": {
+            "$ref": "#/$defs/PlaneMember"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "directory",
+        "kind",
+        "members",
+        "findings"
+      ],
+      "type": "object"
+    },
+    "PlanesModel": {
+      "description": "The reply to `plane.list` and the `plane.changed` event: every plane and\ndraft in the planes directory, sorted by id.",
+      "properties": {
+        "listError": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlaneListError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The last `bp list` failed; `planes` keeps what the one before found."
+        },
+        "planes": {
+          "items": {
+            "$ref": "#/$defs/PlaneRow"
+          },
+          "type": "array"
+        },
+        "planesDir": {
+          "type": "string"
+        },
+        "planesDirExists": {
+          "type": "boolean"
+        },
+        "refreshedAt": {
+          "description": "When `bp list` last answered, in Unix milliseconds; absent until it\nfirst has, and a `plane.changed` follows.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "planesDir",
+        "planesDirExists",
+        "planes"
+      ],
+      "type": "object"
+    },
+    "Project": {
+      "properties": {
+        "name": {
+          "description": "Without the `@`.",
+          "type": "string"
+        },
+        "sourceRepoPresent": {
+          "description": "`false` also for a project whose `project.toml` did not parse.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "sourceRepoPresent"
       ],
       "type": "object"
     },

@@ -58,7 +58,8 @@ pub struct DaemonShutdownParams {
 }
 
 /// One module of the daemon and whether this host can serve it; `reason`
-/// names the fix when it cannot.
+/// names the fix when it cannot. `info` is the module's own: `plane`'s is a
+/// [`PlaneInfo`](crate::plane::PlaneInfo).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
