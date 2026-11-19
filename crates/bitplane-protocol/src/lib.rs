@@ -8,6 +8,7 @@ pub mod fs;
 pub mod git;
 pub mod hello;
 mod open_enum;
+pub mod plane;
 pub mod rpc;
 pub mod session;
 
@@ -64,4 +65,14 @@ pub mod method {
 
     /// Event, scoped to the connections watching the repo.
     pub const GIT_CHANGED: &str = "git.changed";
+
+    pub const PLANE_LIST: &str = "plane.list";
+    /// Re-runs `bp list`; the answer arrives as `plane.changed`.
+    pub const PLANE_REFRESH: &str = "plane.refresh";
+    pub const PLANE_PROJECTS: &str = "plane.projects";
+    pub const PLANE_CREATE_DRAFT: &str = "plane.createDraft";
+    pub const PLANE_DISPATCH: &str = "plane.dispatch";
+
+    /// Event, broadcast: the whole model.
+    pub const PLANE_CHANGED: &str = "plane.changed";
 }
