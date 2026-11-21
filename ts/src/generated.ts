@@ -190,6 +190,23 @@ export type AttachmentResizeParams = {
 	rows: number,
 };
 
+/**  A raw blob: the reply to `fs.read` and `git.show`. */
+export type Blob = Blob_Serialize | Blob_Deserialize;
+
+/**  A raw blob: the reply to `fs.read` and `git.show`. */
+export type Blob_Deserialize = {
+	size: number,
+	/**  The bytes, base64 (standard alphabet, padded); absent past `maxBytes`. */
+	data?: string | null,
+};
+
+/**  A raw blob: the reply to `fs.read` and `git.show`. */
+export type Blob_Serialize = {
+	size: number,
+	/**  The bytes, base64 (standard alphabet, padded); absent past `maxBytes`. */
+	data?: string | null,
+};
+
 /**
  *  One module of the daemon and whether this host can serve it; `reason`
  *  names the fix when it cannot.
@@ -285,6 +302,210 @@ export type ErrorData_Deserialize = {
 export type ErrorData_Serialize = {
 	code: ErrorCode,
 	detail?: unknown | null,
+};
+
+/**
+ *  The `fs.changed` event: the watched folder `path` changed, or with
+ *  `gone` it cannot be watched and has left the scope.
+ */
+export type FsChanged = FsChanged_Serialize | FsChanged_Deserialize;
+
+/**
+ *  The `fs.changed` event: the watched folder `path` changed, or with
+ *  `gone` it cannot be watched and has left the scope.
+ */
+export type FsChanged_Deserialize = {
+	path: string,
+	gone?: boolean,
+};
+
+/**
+ *  The `fs.changed` event: the watched folder `path` changed, or with
+ *  `gone` it cannot be watched and has left the scope.
+ */
+export type FsChanged_Serialize = {
+	path: string,
+	gone?: boolean,
+};
+
+export type FsEntry = {
+	name: string,
+	/**  What the entry is once symlinks are followed. */
+	kind: FsEntryKind,
+	/**
+	 *  Matched by the containing repo's ignore rules, or `.git` and
+	 *  everything in it.
+	 */
+	ignored: boolean,
+};
+
+export type FsEntryKind = "file" | "directory" | 
+/**  Any kind this build does not know, from a newer peer. */
+"unknown";
+
+export type FsListResult = {
+	/**  Sorted by name. */
+	entries: FsEntry[],
+};
+
+/**  `fs.list`: a missing path gets `NOT_FOUND`. */
+export type FsPathParams = {
+	path: string,
+};
+
+/**  `fs.read`: a missing path or a folder gets `NOT_FOUND`. */
+export type FsReadParams = FsReadParams_Serialize | FsReadParams_Deserialize;
+
+/**  `fs.read`: a missing path or a folder gets `NOT_FOUND`. */
+export type FsReadParams_Deserialize = {
+	path: string,
+	/**  Reply without `data` past this size; capped at [`READ_LIMIT`], its default. */
+	maxBytes?: number | null,
+};
+
+/**  `fs.read`: a missing path or a folder gets `NOT_FOUND`. */
+export type FsReadParams_Serialize = {
+	path: string,
+	/**  Reply without `data` past this size; capped at [`READ_LIMIT`], its default. */
+	maxBytes?: number | null,
+};
+
+export type GitChange = GitChange_Serialize | GitChange_Deserialize;
+
+export type GitChangeKind = "modified" | "typeChanged" | "added" | "deleted" | "renamed" | "copied" | "conflicted" | 
+/**  Any kind this build does not know, from a newer peer. */
+"unknown";
+
+export type GitChange_Deserialize = {
+	/**  Repo-relative. */
+	path: string,
+	kind: GitChangeKind,
+	/**  The original path of a rename or copy. */
+	from?: string | null,
+};
+
+export type GitChange_Serialize = {
+	/**  Repo-relative. */
+	path: string,
+	kind: GitChangeKind,
+	/**  The original path of a rename or copy. */
+	from?: string | null,
+};
+
+export type GitHead = { kind: "branch"; name: string } | 
+/**  `sha` is abbreviated to 7 characters. */
+{ kind: "detached"; sha: string } | 
+/**  Any head this build does not know, from a newer peer. */
+{ kind: "unknown" };
+
+/**
+ *  One repo path's state: also the `git.changed` event. Exactly one of
+ *  `status`, `gone` and `error` is set.
+ */
+export type GitRepo = GitRepo_Serialize | GitRepo_Deserialize;
+
+/**
+ *  One repo path's state: also the `git.changed` event. Exactly one of
+ *  `status`, `gone` and `error` is set.
+ */
+export type GitRepo_Deserialize = {
+	path: string,
+	status?: GitStatus_Deserialize | null,
+	/**  The path is missing or not a repo; in an event, it left the scope. */
+	gone?: boolean,
+	/**  git ran and failed, in its own words. */
+	error?: string | null,
+};
+
+/**
+ *  One repo path's state: also the `git.changed` event. Exactly one of
+ *  `status`, `gone` and `error` is set.
+ */
+export type GitRepo_Serialize = {
+	path: string,
+	status?: GitStatus_Serialize | null,
+	/**  The path is missing or not a repo; in an event, it left the scope. */
+	gone?: boolean,
+	/**  git ran and failed, in its own words. */
+	error?: string | null,
+};
+
+export type GitRev = "head" | "index" | 
+/**  Any rev this build does not know, from a newer peer. */
+"unknown";
+
+/**
+ *  `git.show`: `path` is relative to `repo`. A blob missing at `rev`, or a
+ *  `repo` that is not a repo, gets `NOT_FOUND`. Replies with a [`Blob`](crate::fs::Blob).
+ */
+export type GitShowParams = GitShowParams_Serialize | GitShowParams_Deserialize;
+
+/**
+ *  `git.show`: `path` is relative to `repo`. A blob missing at `rev`, or a
+ *  `repo` that is not a repo, gets `NOT_FOUND`. Replies with a [`Blob`](crate::fs::Blob).
+ */
+export type GitShowParams_Deserialize = {
+	repo: string,
+	path: string,
+	rev: GitRev,
+	/**  Reply without `data` past this size; capped at [`READ_LIMIT`](crate::fs::READ_LIMIT), its default. */
+	maxBytes?: number | null,
+};
+
+/**
+ *  `git.show`: `path` is relative to `repo`. A blob missing at `rev`, or a
+ *  `repo` that is not a repo, gets `NOT_FOUND`. Replies with a [`Blob`](crate::fs::Blob).
+ */
+export type GitShowParams_Serialize = {
+	repo: string,
+	path: string,
+	rev: GitRev,
+	/**  Reply without `data` past this size; capped at [`READ_LIMIT`](crate::fs::READ_LIMIT), its default. */
+	maxBytes?: number | null,
+};
+
+export type GitStatus = GitStatus_Serialize | GitStatus_Deserialize;
+
+/**  `git.status`. */
+export type GitStatusParams = {
+	paths: string[],
+};
+
+export type GitStatusResult = GitStatusResult_Serialize | GitStatusResult_Deserialize;
+
+export type GitStatusResult_Deserialize = {
+	/**  One per requested path, in order. */
+	repos: GitRepo_Deserialize[],
+};
+
+export type GitStatusResult_Serialize = {
+	/**  One per requested path, in order. */
+	repos: GitRepo_Serialize[],
+};
+
+export type GitStatus_Deserialize = {
+	head: GitHead,
+	/**  Absent without an upstream, or when the upstream is gone. */
+	tracking?: GitTracking | null,
+	staged: GitChange_Deserialize[],
+	unstaged: GitChange_Deserialize[],
+	/**  Repo-relative paths. */
+	untracked: string[],
+};
+
+export type GitStatus_Serialize = {
+	head: GitHead,
+	/**  Absent without an upstream, or when the upstream is gone. */
+	tracking?: GitTracking | null,
+	staged: GitChange_Serialize[],
+	unstaged: GitChange_Serialize[],
+	/**  Repo-relative paths. */
+	untracked: string[],
+};
+
+export type GitTracking = {
+	ahead: number,
+	behind: number,
 };
 
 /**
@@ -636,3 +857,11 @@ export type Tracking = "hooks" | "poll" |
 export type WaitingReason = "permission" | "input" | "other" | 
 /**  Any reason this build does not know, from a newer peer. */
 "unknown";
+
+/**
+ *  `fs.watch` and `git.watch`: replaces this connection's scope of the
+ *  module; `[]` stops. Only paths new to the scope get an initial event.
+ */
+export type WatchParams = {
+	paths: string[],
+};
