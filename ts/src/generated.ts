@@ -207,15 +207,27 @@ export type Blob_Serialize = {
 	data?: string | null,
 };
 
+export type BpVersion = {
+	/**  The binary's own version. */
+	version: string,
+	/**
+	 *  The version of `bp`'s wire: its requests, responses, envelope and
+	 *  progress events.
+	 */
+	contract: number,
+};
+
 /**
  *  One module of the daemon and whether this host can serve it; `reason`
- *  names the fix when it cannot.
+ *  names the fix when it cannot. `info` is the module's own: `plane`'s is a
+ *  [`PlaneInfo`](crate::plane::PlaneInfo).
  */
 export type Capability = Capability_Serialize | Capability_Deserialize;
 
 /**
  *  One module of the daemon and whether this host can serve it; `reason`
- *  names the fix when it cannot.
+ *  names the fix when it cannot. `info` is the module's own: `plane`'s is a
+ *  [`PlaneInfo`](crate::plane::PlaneInfo).
  */
 export type Capability_Deserialize = {
 	module: string,
@@ -226,7 +238,8 @@ export type Capability_Deserialize = {
 
 /**
  *  One module of the daemon and whether this host can serve it; `reason`
- *  names the fix when it cannot.
+ *  names the fix when it cannot. `info` is the module's own: `plane`'s is a
+ *  [`PlaneInfo`](crate::plane::PlaneInfo).
  */
 export type Capability_Serialize = {
 	module: string,
@@ -289,6 +302,14 @@ export type ErrorCode =
  *  resuming in another session.
  */
 "AGENT_LIVE" | 
+/**  `plane.createDraft` names an entry already in the planes directory. */
+"PLANE_EXISTS" | 
+/**  `bp` ran and refused; `detail` is its error envelope verbatim. */
+"BP_REFUSED" | 
+/**  No such job: never started, dismissed, or auto-dismissed. */
+"UNKNOWN_JOB" | 
+/**  `job.cancel` on a job that already finished. */
+"JOB_FINISHED" | 
 /**  Any code this build does not know, from a newer peer. */
 "UNKNOWN";
 
@@ -553,6 +574,170 @@ export type HelloResult_Serialize = {
 
 export type Id = number | string;
 
+/**  The reply's entries to `job.list`, and the `job.changed` event's. */
+export type Job = Job_Serialize | Job_Deserialize;
+
+/**  The `job.changed` event, broadcast. */
+export type JobChanged = JobChanged_Serialize | JobChanged_Deserialize;
+
+/**  The `job.changed` event, broadcast. */
+export type JobChanged_Deserialize = {
+	job: Job_Deserialize,
+};
+
+/**  The `job.changed` event, broadcast. */
+export type JobChanged_Serialize = {
+	job: Job_Serialize,
+};
+
+/**  Who started a job: the `hello` client's name and version. */
+export type JobClient = {
+	name: string,
+	version: string,
+};
+
+export type JobKind = 
+/**  Started by `plane.create`. */
+"plane.create" | 
+/**  Any kind this build does not know, from a newer peer. */
+"unknown";
+
+/**
+ *  The reply to `job.list`: running jobs and finished ones not yet
+ *  dismissed, oldest first.
+ */
+export type JobListResult = JobListResult_Serialize | JobListResult_Deserialize;
+
+/**
+ *  The reply to `job.list`: running jobs and finished ones not yet
+ *  dismissed, oldest first.
+ */
+export type JobListResult_Deserialize = {
+	jobs: Job_Deserialize[],
+};
+
+/**
+ *  The reply to `job.list`: running jobs and finished ones not yet
+ *  dismissed, oldest first.
+ */
+export type JobListResult_Serialize = {
+	jobs: Job_Serialize[],
+};
+
+/**
+ *  The `job.log` event, sent only to connections watching the job. For
+ *  `plane.create` each line is `bp`'s stderr verbatim, without its newline.
+ */
+export type JobLog = JobLog_Serialize | JobLog_Deserialize;
+
+/**
+ *  The `job.log` event, sent only to connections watching the job. For
+ *  `plane.create` each line is `bp`'s stderr verbatim, without its newline.
+ */
+export type JobLog_Deserialize = {
+	job: string,
+	lines: string[],
+	/**  On a backlog only: how many earlier lines the capped log evicted. */
+	dropped?: number | null,
+};
+
+/**
+ *  The `job.log` event, sent only to connections watching the job. For
+ *  `plane.create` each line is `bp`'s stderr verbatim, without its newline.
+ */
+export type JobLog_Serialize = {
+	job: string,
+	lines: string[],
+	/**  On a backlog only: how many earlier lines the capped log evicted. */
+	dropped?: number | null,
+};
+
+/**
+ *  For `plane.create`, the furthest step any member has started, from
+ *  `bp`'s progress events: fetch, worktree, script.
+ */
+export type JobPhase = "fetching" | "addingWorktrees" | "runningScripts" | 
+/**  Any phase this build does not know, from a newer peer. */
+"unknown";
+
+/**
+ *  Names one job: `job.cancel` and `job.dismiss`, and the `job.removed`
+ *  event. `UNKNOWN_JOB` for a job the daemon does not have; `job.cancel`
+ *  on a finished job gets `JOB_FINISHED`, `job.dismiss` on a running one
+ *  `INVALID_REQUEST`.
+ */
+export type JobRef = {
+	job: string,
+};
+
+/**
+ *  Every state but `running` is final. For `plane.create` it is `bp`'s
+ *  answer, never what the disk looks like.
+ */
+export type JobStatus = { state: "running" } | { state: "succeeded" } | 
+/**  The plane was built and a script it ran failed. */
+{ state: "scriptFailed" } | 
+/**  `bp` left nothing behind: it refused, or unwound everything. */
+{ state: "nothingCreated" } | 
+/**  `bp` could not take back all it made; the plane is a remnant. */
+{ state: "partial" } | 
+/**
+ *  The work ended without an answer: `bp` could not be run, died, or
+ *  the daemon restarted under it (`reason` is then `daemon restarted`).
+ */
+{ state: "failed"; reason: string } | 
+/**  Any state this build does not know, from a newer peer. */
+{ state: "unknown" };
+
+/**
+ *  `job.watch`: replaces this connection's log scope; `[]` stops. Each job
+ *  new to the scope gets its backlog as one `job.log`, then live lines
+ *  while it runs. A job the daemon does not have gets `job.removed` at once.
+ */
+export type JobWatchParams = {
+	jobs: string[],
+};
+
+/**  The reply's entries to `job.list`, and the `job.changed` event's. */
+export type Job_Deserialize = {
+	id: string,
+	kind: JobKind,
+	status: JobStatus,
+	/**  The furthest step the work has started; absent until it reports one. */
+	phase?: JobPhase | null,
+	/**  The `hello` client of the connection that started it, for display. */
+	startedBy: JobClient,
+	/**  Unix milliseconds. */
+	startedAt: number,
+	/**  Unix milliseconds; set once `status` is no longer `running`. */
+	finishedAt?: number | null,
+	/**
+	 *  The kind's own: `plane.create`'s is a
+	 *  [`PlaneCreateDetail`](crate::plane::PlaneCreateDetail).
+	 */
+	detail: unknown,
+};
+
+/**  The reply's entries to `job.list`, and the `job.changed` event's. */
+export type Job_Serialize = {
+	id: string,
+	kind: JobKind,
+	status: JobStatus,
+	/**  The furthest step the work has started; absent until it reports one. */
+	phase?: JobPhase | null,
+	/**  The `hello` client of the connection that started it, for display. */
+	startedBy: JobClient,
+	/**  Unix milliseconds. */
+	startedAt: number,
+	/**  Unix milliseconds; set once `status` is no longer `running`. */
+	finishedAt?: number | null,
+	/**
+	 *  The kind's own: `plane.create`'s is a
+	 *  [`PlaneCreateDetail`](crate::plane::PlaneCreateDetail).
+	 */
+	detail: unknown,
+};
+
 export type Notification = Notification_Serialize | Notification_Deserialize;
 
 export type Notification_Deserialize = {
@@ -572,6 +757,189 @@ export type Outcome = Outcome_Serialize | Outcome_Deserialize;
 export type Outcome_Deserialize = ({ result: unknown }) & { error?: never } | ({ error: RpcError_Deserialize }) & { result?: never };
 
 export type Outcome_Serialize = ({ result: unknown }) & { error?: never } | ({ error: RpcError_Serialize }) & { result?: never };
+
+/**  A `plane.create` job's `detail`. */
+export type PlaneCreateDetail = PlaneCreateDetail_Serialize | PlaneCreateDetail_Deserialize;
+
+/**  A `plane.create` job's `detail`. */
+export type PlaneCreateDetail_Deserialize = {
+	/**  The plane id: the request's, or once `bp` answers, its own. */
+	plane?: string | null,
+	/**  Absolute; known once `bp` answers with a `Response`. */
+	directory?: string | null,
+	/**  `bp`'s `Response`, when it answered with one (an interrupted run too). */
+	response?: unknown | null,
+	/**  `bp`'s error envelope, when it refused. */
+	envelope?: unknown | null,
+};
+
+/**  A `plane.create` job's `detail`. */
+export type PlaneCreateDetail_Serialize = {
+	/**  The plane id: the request's, or once `bp` answers, its own. */
+	plane?: string | null,
+	/**  Absolute; known once `bp` answers with a `Response`. */
+	directory?: string | null,
+	/**  `bp`'s `Response`, when it answered with one (an interrupted run too). */
+	response?: unknown | null,
+	/**  `bp`'s error envelope, when it refused. */
+	envelope?: unknown | null,
+};
+
+/**
+ *  `plane.createDraft`: makes `<planesDir>/<id>`, and the planes directory
+ *  if needed. An id `bp` would refuse gets `INVALID_PARAMS`, an existing
+ *  entry `PLANE_EXISTS`. A `plane.changed` follows.
+ */
+export type PlaneCreateDraftParams = {
+	id: string,
+};
+
+/**
+ *  `plane.create`: starts a job of kind `plane.create`, which runs
+ *  `bp --stdin --json --progress-fd 3` with `args` as its request.
+ */
+export type PlaneCreateParams = {
+	/**
+	 *  `bp`'s `PlaneCreateRequest`, opaque; the daemon tags it with
+	 *  `"action": "plane_create"`. Not an object gets `INVALID_PARAMS`.
+	 */
+	args: unknown,
+};
+
+export type PlaneCreateResult = {
+	job: string,
+};
+
+/**  `plane.dispatch`: one `bp` `Request`, run as `bp --stdin --json`. */
+export type PlaneDispatchParams = {
+	request: unknown,
+};
+
+/**
+ *  `bp`'s `Response`, from an exit of `0` or `3`. Any other exit with an
+ *  error envelope is `BP_REFUSED`; anything else is an internal error naming
+ *  the cause.
+ */
+export type PlaneDispatchResult = {
+	response: unknown,
+};
+
+/**
+ *  The `plane` capability's `info` in `hello`: what `bp --version --json`
+ *  answered at startup.
+ */
+export type PlaneInfo = {
+	bp: BpVersion,
+};
+
+export type PlaneKind = 
+/**  A directory holding `plane.toml`, as `bp list` reports it. */
+"plane" | 
+/**  A directory in the planes directory without `plane.toml`. */
+"draft" | 
+/**
+ *  A plane or draft this daemon listed that has since vanished; the only
+ *  gone-plane signal. It stays until the daemon restarts or the id is
+ *  back.
+ */
+"gone" | 
+/**  Any kind this build does not know, from a newer peer. */
+"unknown";
+
+export type PlaneListError = PlaneListError_Serialize | PlaneListError_Deserialize;
+
+export type PlaneListError_Deserialize = {
+	message: string,
+	/**
+	 *  `bp`'s error envelope when it refused, as with `BP_REFUSED`; absent
+	 *  when `bp` could not be run.
+	 */
+	envelope?: unknown | null,
+};
+
+export type PlaneListError_Serialize = {
+	message: string,
+	/**
+	 *  `bp`'s error envelope when it refused, as with `BP_REFUSED`; absent
+	 *  when `bp` could not be run.
+	 */
+	envelope?: unknown | null,
+};
+
+export type PlaneMember = {
+	/**  `@project` or a repo path, as `bp create` takes it. */
+	member: string,
+	/**  The member's worktree, absolute: what `git.*` takes. */
+	path: string,
+};
+
+/**  The reply to `plane.projects`: `bp project list`, sorted by name. */
+export type PlaneProjectsResult = {
+	projects: Project[],
+};
+
+/**  One sidebar row. */
+export type PlaneRow = {
+	/**  The plane directory's name. */
+	id: string,
+	/**  Absolute. */
+	directory: string,
+	kind: PlaneKind,
+	/**  In plane file order; empty unless `kind` is `plane`. */
+	members: PlaneMember[],
+	/**
+	 *  `bp list`'s finding tags, such as `member_worktree_missing`; empty
+	 *  unless `kind` is `plane`.
+	 */
+	findings: string[],
+};
+
+/**
+ *  The reply to `plane.list` and the `plane.changed` event: every plane and
+ *  draft in the planes directory, sorted by id.
+ */
+export type PlanesModel = PlanesModel_Serialize | PlanesModel_Deserialize;
+
+/**
+ *  The reply to `plane.list` and the `plane.changed` event: every plane and
+ *  draft in the planes directory, sorted by id.
+ */
+export type PlanesModel_Deserialize = {
+	planesDir: string,
+	planesDirExists: boolean,
+	/**
+	 *  When `bp list` last answered, in Unix milliseconds; absent until it
+	 *  first has, and a `plane.changed` follows.
+	 */
+	refreshedAt?: number | null,
+	/**  The last `bp list` failed; `planes` keeps what the one before found. */
+	listError?: PlaneListError_Deserialize | null,
+	planes: PlaneRow[],
+};
+
+/**
+ *  The reply to `plane.list` and the `plane.changed` event: every plane and
+ *  draft in the planes directory, sorted by id.
+ */
+export type PlanesModel_Serialize = {
+	planesDir: string,
+	planesDirExists: boolean,
+	/**
+	 *  When `bp list` last answered, in Unix milliseconds; absent until it
+	 *  first has, and a `plane.changed` follows.
+	 */
+	refreshedAt?: number | null,
+	/**  The last `bp list` failed; `planes` keeps what the one before found. */
+	listError?: PlaneListError_Serialize | null,
+	planes: PlaneRow[],
+};
+
+export type Project = {
+	/**  Without the `@`. */
+	name: string,
+	/**  `false` also for a project whose `project.toml` did not parse. */
+	sourceRepoPresent: boolean,
+};
 
 export type Request = Request_Serialize | Request_Deserialize;
 

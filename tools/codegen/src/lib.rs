@@ -16,6 +16,15 @@ use bitplane_protocol::{
         GitChange, GitChangeKind, GitHead, GitRepo, GitRev, GitShowParams, GitStatus,
         GitStatusParams, GitStatusResult, GitTracking,
     },
+    job::{
+        Job, JobChanged, JobClient, JobKind, JobListResult, JobLog, JobPhase, JobRef, JobStatus,
+        JobWatchParams,
+    },
+    plane::{
+        BpVersion, PlaneCreateDetail, PlaneCreateDraftParams, PlaneCreateParams, PlaneCreateResult,
+        PlaneDispatchParams, PlaneDispatchResult, PlaneInfo, PlaneKind, PlaneListError,
+        PlaneMember, PlaneProjectsResult, PlaneRow, PlanesModel, Project,
+    },
     rpc::Outcome,
     session::{
         AttachmentAckParams, AttachmentError, AttachmentOpenParams, AttachmentOpenResult,
@@ -87,7 +96,32 @@ pub fn typescript() -> String {
         .register::<GitChange>()
         .register::<GitChangeKind>()
         .register::<GitShowParams>()
-        .register::<GitRev>();
+        .register::<GitRev>()
+        .register::<PlaneInfo>()
+        .register::<BpVersion>()
+        .register::<PlanesModel>()
+        .register::<PlaneListError>()
+        .register::<PlaneRow>()
+        .register::<PlaneMember>()
+        .register::<PlaneKind>()
+        .register::<PlaneProjectsResult>()
+        .register::<Project>()
+        .register::<PlaneCreateDraftParams>()
+        .register::<PlaneDispatchParams>()
+        .register::<PlaneDispatchResult>()
+        .register::<PlaneCreateParams>()
+        .register::<PlaneCreateResult>()
+        .register::<PlaneCreateDetail>()
+        .register::<Job>()
+        .register::<JobKind>()
+        .register::<JobPhase>()
+        .register::<JobStatus>()
+        .register::<JobClient>()
+        .register::<JobListResult>()
+        .register::<JobChanged>()
+        .register::<JobRef>()
+        .register::<JobWatchParams>()
+        .register::<JobLog>();
     specta_typescript::Typescript::default()
         .header("// Generated from the bitplane-protocol crate. Do not edit.")
         .export(&types, specta_serde::PhasesFormat)
@@ -128,6 +162,20 @@ pub fn json_schema() -> String {
     generator.subschema_for::<GitStatusResult>();
     generator.subschema_for::<GitRepo>();
     generator.subschema_for::<GitShowParams>();
+    generator.subschema_for::<PlaneInfo>();
+    generator.subschema_for::<PlanesModel>();
+    generator.subschema_for::<PlaneProjectsResult>();
+    generator.subschema_for::<PlaneCreateDraftParams>();
+    generator.subschema_for::<PlaneDispatchParams>();
+    generator.subschema_for::<PlaneDispatchResult>();
+    generator.subschema_for::<PlaneCreateParams>();
+    generator.subschema_for::<PlaneCreateResult>();
+    generator.subschema_for::<PlaneCreateDetail>();
+    generator.subschema_for::<JobListResult>();
+    generator.subschema_for::<JobChanged>();
+    generator.subschema_for::<JobRef>();
+    generator.subschema_for::<JobWatchParams>();
+    generator.subschema_for::<JobLog>();
     let schema = serde_json::json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "bitplane protocol",

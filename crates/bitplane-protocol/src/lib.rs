@@ -7,7 +7,9 @@ pub mod frame;
 pub mod fs;
 pub mod git;
 pub mod hello;
+pub mod job;
 mod open_enum;
+pub mod plane;
 pub mod rpc;
 pub mod session;
 
@@ -23,6 +25,19 @@ pub mod method {
     pub const HELLO: &str = "hello";
     /// Replies once the sessions are saved or hung up, then the daemon exits.
     pub const DAEMON_SHUTDOWN: &str = "daemon.shutdown";
+
+    pub const JOB_LIST: &str = "job.list";
+    /// Replaces this connection's log scope.
+    pub const JOB_WATCH: &str = "job.watch";
+    /// Interrupts the work; its final status arrives as `job.changed`.
+    pub const JOB_CANCEL: &str = "job.cancel";
+    pub const JOB_DISMISS: &str = "job.dismiss";
+
+    /// Events. `changed` and `removed` are broadcast; `log` goes only to
+    /// connections watching the job.
+    pub const JOB_CHANGED: &str = "job.changed";
+    pub const JOB_REMOVED: &str = "job.removed";
+    pub const JOB_LOG: &str = "job.log";
 
     pub const SESSION_LIST: &str = "session.list";
     pub const SESSION_OPEN: &str = "session.open";
@@ -63,4 +78,16 @@ pub mod method {
 
     /// Event, scoped to the connections watching the repo.
     pub const GIT_CHANGED: &str = "git.changed";
+
+    pub const PLANE_LIST: &str = "plane.list";
+    /// Re-runs `bp list`; the answer arrives as `plane.changed`.
+    pub const PLANE_REFRESH: &str = "plane.refresh";
+    pub const PLANE_PROJECTS: &str = "plane.projects";
+    pub const PLANE_CREATE_DRAFT: &str = "plane.createDraft";
+    /// Starts a `plane.create` job.
+    pub const PLANE_CREATE: &str = "plane.create";
+    pub const PLANE_DISPATCH: &str = "plane.dispatch";
+
+    /// Event, broadcast: the whole model.
+    pub const PLANE_CHANGED: &str = "plane.changed";
 }
