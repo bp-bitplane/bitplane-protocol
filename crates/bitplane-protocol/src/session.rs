@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::ErrorCode;
+use crate::agent::{AgentKind, AgentSessionId};
 
 /// A stable opaque string (a UUID), also the shell's `BITPLANE_SESSION_ID`.
 pub type SessionId = String;
@@ -36,6 +37,9 @@ pub struct Session {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub foreground: Option<String>,
     pub status: SessionStatus,
+    /// Set on an agent terminal, whose process is the agent itself, not a shell.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<SessionAgent>,
     /// The root no longer exists; a running shell keeps running, and
     /// `session.restart` gets `ROOT_GONE` until it is back.
     #[serde(default)]
@@ -62,6 +66,12 @@ pub enum SessionStatus {
     Unknown,
 }
 
+crate::open_enum::deserialize_tagged_as_unknown!(
+    SessionStatus,
+    "state",
+    [Running, Exited { code: i32 }, SpawnFailed { error: String }]
+);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -70,8 +80,17 @@ pub struct Size {
     pub rows: u16,
 }
 
+/// What an agent terminal runs (sessiond ADR 0029).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct SessionAgent {
+    pub kind: AgentKind,
+}
+
 /// `session.open`: `root` must be an existing directory. `env` is set on top
-/// of the daemon's login-shell environment.
+/// of the daemon's login-shell environment. Without `agent` the session is a
+/// regular terminal running the login shell; with it, an agent terminal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -83,6 +102,25 @@ pub struct SessionOpenParams {
     pub plane: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<SessionOpenAgent>,
+}
+
+/// The agent an agent terminal launches. `resume` continues that agent
+/// session; one live elsewhere gets `AGENT_LIVE`. The agent starts in `cwd`,
+/// which may lie outside the root; without it, a resumed agent session
+/// starts where the daemon knows it ran, else in the root. A `cwd` that is
+/// not a directory makes the session `spawnFailed { error }` with its agent
+/// link kept, so `session.restart` works once the directory is back.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct SessionOpenAgent {
+    pub kind: AgentKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resume: Option<AgentSessionId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
 }
 
 /// The result of `session.open`, and the `session.changed` event.
@@ -195,32 +233,4 @@ pub struct AttachmentError {
     pub attachment: AttachmentId,
     pub code: ErrorCode,
     pub message: String,
-}
-
-/// A `state` this build does not name decodes as `Unknown`; specta cannot
-/// export `#[serde(other)]` on a tagged enum (see `open_enum`).
-impl<'de> Deserialize<'de> for SessionStatus {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        #[derive(Deserialize)]
-        #[serde(tag = "state", rename_all = "camelCase")]
-        enum Known {
-            Running,
-            Exited { code: i32 },
-            SpawnFailed { error: String },
-        }
-        let value = serde_json::Value::deserialize(deserializer)?;
-        if !matches!(
-            value.get("state").and_then(|state| state.as_str()),
-            Some("running" | "exited" | "spawnFailed")
-        ) {
-            return Ok(SessionStatus::Unknown);
-        }
-        Ok(
-            match Known::deserialize(value).map_err(serde::de::Error::custom)? {
-                Known::Running => SessionStatus::Running,
-                Known::Exited { code } => SessionStatus::Exited { code },
-                Known::SpawnFailed { error } => SessionStatus::SpawnFailed { error },
-            },
-        )
-    }
 }
